@@ -26,6 +26,15 @@ func TestDecorate(t *testing.T) {
 	})
 }
 
+func TestAlterUploadPath(t *testing.T) {
+	rawPath := "/org/apache/kafka/connect-api/2.7.0.redhat-00012/connect-api-2.7.0.redhat-00012-javadoc.jar"
+	altered := alterUploadPath(rawPath)
+	expected := "/org/apache/kafka/connect-api/2.7.0.redhat-999999/connect-api-2.7.0.redhat-999999-javadoc.jar"
+	Convey("Replacing should work", t, func() {
+		So(altered, ShouldEqual, expected)
+	})
+}
+
 // func TestReplaceTarget(t *testing.T) {
 // 	Convey("Replacing should work", t, func() {
 // 		testDownloads := []string{"http://testdownload/api/folo/track/build-sdekjf-galj/maven/group/build-sdekjf-galj/org/jboss/eap/wildfly-clustering-web-extension/7.3.8.GA-redhat-00001/wildfly-clustering-web-extension-7.3.8.GA-redhat-00001.jar",

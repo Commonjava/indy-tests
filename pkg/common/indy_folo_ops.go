@@ -16,6 +16,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 )
@@ -34,6 +35,7 @@ type TrackedContentEntry struct {
 	AccessChannel string  `json:"accessChannel"`
 	Path          string  `json:"path"`
 	OriginUrl     string  `json:"originUrl"`
+	LocalUrl      string  `json:"localUrl"`
 	Effect        string  `json:"effect"`
 	Md5           string  `json:"md5"`
 	Sha256        string  `json:"sha256"`
@@ -52,6 +54,13 @@ func GetFoloRecord(indyURL, foloRecordId string) TrackedContent {
 		fmt.Printf("Error: cannot get folo record %s at indy instance %s, error is: %s\n", foloRecordId, indyURL, err.Error())
 		os.Exit(1)
 	}
+	return *trackContent
+}
+
+func GetFoloRecordFromFile(fileLoc string) TrackedContent {
+	trackContent := &TrackedContent{}
+	b := ReadByteFromFile(fileLoc)
+	json.Unmarshal(b, trackContent)
 	return *trackContent
 }
 

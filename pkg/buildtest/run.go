@@ -13,10 +13,25 @@ import (
 	common "github.com/commonjava/indy-tests/pkg/common"
 )
 
-const TMP_DOWNLOAD_DIR = "/tmp/download"
-const TMP_UPLOAD_DIR = "/tmp/upload"
+const (
+	TMP_DOWNLOAD_DIR = "/tmp/download"
+	TMP_UPLOAD_DIR   = "/tmp/upload"
+)
+
+var (
+	versionRegexp = regexp.MustCompile(`redhat-([0-9]+)`)
+)
 
 func Run(originalIndy, foloId, replacement, targetIndy, buildType string, processNum int) {
+	origIndy := originalIndy
+	if !strings.HasPrefix(origIndy, "http://") {
+		origIndy = "http://" + origIndy
+	}
+	foloTrackContent := common.GetFoloRecord(origIndy, foloId)
+	DoRun(originalIndy, replacement, targetIndy, buildType, foloTrackContent, processNum)
+}
+
+func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackContent common.TrackedContent, processNum int) string {
 	_, validated := common.ValidateTargetIndy(originalIndy)
 	if !validated {
 		os.Exit(1)
@@ -34,12 +49,6 @@ func Run(originalIndy, foloId, replacement, targetIndy, buildType string, proces
 		os.Exit(1)
 	}
 
-	origIndy := originalIndy
-	if !strings.HasPrefix(origIndy, "http://") {
-		origIndy = "http://" + origIndy
-	}
-	foloTrackContent := common.GetFoloRecord(origIndy, foloId)
-
 	prepareCacheDirectories()
 
 	downloads := prepareDownloadEntriesByFolo(targetIndy, newBuildName, foloTrackContent)
@@ -48,7 +57,7 @@ func Run(originalIndy, foloId, replacement, targetIndy, buildType string, proces
 		return common.DownloadFile(targetArtiURL, fileLoc)
 	}
 	broken := false
-	if downloads != nil && len(downloads) > 0 {
+	if len(downloads) > 0 {
 		fmt.Println("Start handling downloads artifacts.")
 		fmt.Printf("==========================================\n\n")
 		if processNum > 1 {
@@ -80,7 +89,7 @@ func Run(originalIndy, foloId, replacement, targetIndy, buildType string, proces
 
 	uploads := prepareUploadEntriesByFolo(originalIndy, targetIndy, newBuildName, foloTrackContent)
 
-	if uploads != nil && len(uploads) > 0 {
+	if len(uploads) > 0 {
 		fmt.Println("Start handling uploads artifacts.")
 		fmt.Printf("==========================================\n\n")
 		if processNum > 1 {
@@ -112,6 +121,8 @@ func Run(originalIndy, foloId, replacement, targetIndy, buildType string, proces
 			fmt.Printf("Warning: folo record sealing failed for %s", newBuildName)
 		}
 	}
+
+	return newBuildName
 }
 
 // For downloads entries, we will get the paths and inject them to the final url of target indy
@@ -138,11 +149,16 @@ func prepareUploadEntriesByFolo(originalIndyURL, targetIndyURL, newBuildId strin
 		storePath := common.StoreKeyToPath(up.StoreKey)
 		uploadPath := path.Join("api/content", storePath, up.Path)
 		orgiUpUrl := fmt.Sprintf("%s%s", originalIndy, uploadPath)
-		targUpUrl := fmt.Sprintf("%sapi/folo/track/%s/maven/group/%s%s", targetIndy, newBuildId, newBuildId, up.Path)
+		alteredUploadPath := alterUploadPath(uploadPath)
+		targUpUrl := fmt.Sprintf("%sapi/folo/track/%s/maven/group/%s%s", targetIndy, newBuildId, newBuildId, alteredUploadPath)
 		result[up.Path] = []string{orgiUpUrl, targUpUrl}
 	}
 
 	return result
+}
+
+func alterUploadPath(rawPath string) string {
+	return versionRegexp.ReplaceAllString(rawPath, "redhat-999999") // replace with a large build number
 }
 
 func normIndyURL(indyURL string) string {
