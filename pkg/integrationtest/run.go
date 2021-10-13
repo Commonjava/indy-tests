@@ -52,7 +52,7 @@ const (
  * h. Retrieve the metadata files from step #f again, check if the new version is available
  * i. Clean the test files by rollback the promotion.
  * j. Retrieve the metadata files from step #f again, check if the new version is gone
- * k. Delete the temp group and the hosted repo A.
+ * k. Delete the temp group and the hosted repo A. Delete folo record.
  */
 func Run(indyBaseUrl, datasetRepoUrl, buildId string) {
 	//Create target folder (to store downloaded files), e.g, 'target'
@@ -77,12 +77,13 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId string) {
 	fmt.Printf("Retrieve metadata SUCCESS, elapsed(s): %f\n", elapsed.Seconds())
 
 	//c/d/e. Create a mock build group, download files, rename to-be-uploaded files
+	packageType := getPackageType(info)
 	foloFileLoc := path.Join(datasetRepoDir, buildId, dataset.TRACKING_JSON)
 	foloTrackContent := common.GetFoloRecordFromFile(foloFileLoc)
 	originalIndy := getOriginalIndyBaseUrl(foloTrackContent.Uploads[0].LocalUrl)
 	processNum := 1
 	prev := t
-	buildName := buildtest.DoRun(originalIndy, "", indyBaseUrl, info.BuildType, foloTrackContent, processNum)
+	buildName := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, foloTrackContent, processNum)
 	t = time.Now()
 	elapsed = t.Sub(prev)
 	fmt.Printf("Create mock group(%s) and download/upload SUCCESS, elapsed(s): %f\n", buildName, elapsed.Seconds())
@@ -97,8 +98,8 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId string) {
 
 	funcJ()
 
-	//k. Delete the temp group and the hosted repo
-	cleanUp(indyBaseUrl, getPackageType(info), buildName)
+	//k. Delete the temp group and the hosted repo, and folo record
+	cleanUp(indyBaseUrl, packageType, buildName)
 }
 
 func cloneRepo(datasetRepoUrl string) string {
@@ -174,4 +175,10 @@ func funcJ() {
 
 func cleanUp(indyBaseUrl, packageType, buildName string) {
 	buildtest.DeleteIndyTestRepos(indyBaseUrl, packageType, buildName)
+
+	if common.DeleteFoloRecord(indyBaseUrl, buildName) {
+		fmt.Printf("Delete folo record %s SUCCESS\n", buildName)
+	} else {
+		fmt.Printf("Delete folo record %s FAILED\n", buildName)
+	}
 }

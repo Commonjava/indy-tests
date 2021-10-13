@@ -70,3 +70,10 @@ func SealFoloRecord(indyURL, foloRecordId string) bool {
 	_, _, result := HTTPRequest(URL, MethodPost, nil, false, nil, nil, "", false)
 	return result
 }
+
+func DeleteFoloRecord(indyURL, foloRecordId string) bool {
+	URL := fmt.Sprintf("%s/api/folo/admin/%s/record", indyURL, foloRecordId)
+	fmt.Printf("Start to delete folo tracking record through: %s\n", URL)
+	_, _, result := HTTPRequest(URL, MethodDelete, nil, false, nil, nil, "", false)
+	return result
+}
