@@ -16,6 +16,7 @@ import (
 const (
 	TMP_DOWNLOAD_DIR = "/tmp/download"
 	TMP_UPLOAD_DIR   = "/tmp/upload"
+	BUILD_TEST_      = "build-test-"
 )
 
 var (
@@ -149,7 +150,7 @@ func prepareUploadEntriesByFolo(originalIndyURL, targetIndyURL, newBuildId strin
 		storePath := common.StoreKeyToPath(up.StoreKey)
 		uploadPath := path.Join("api/content", storePath, up.Path)
 		orgiUpUrl := fmt.Sprintf("%s%s", originalIndy, uploadPath)
-		alteredUploadPath := alterUploadPath(uploadPath)
+		alteredUploadPath := alterUploadPath(uploadPath, newBuildId[len(BUILD_TEST_):])
 		targUpUrl := fmt.Sprintf("%sapi/folo/track/%s/maven/group/%s%s", targetIndy, newBuildId, newBuildId, alteredUploadPath)
 		result[up.Path] = []string{orgiUpUrl, targUpUrl}
 	}
@@ -157,8 +158,8 @@ func prepareUploadEntriesByFolo(originalIndyURL, targetIndyURL, newBuildId strin
 	return result
 }
 
-func alterUploadPath(rawPath string) string {
-	return versionRegexp.ReplaceAllString(rawPath, "redhat-999999") // replace with a large build number
+func alterUploadPath(rawPath, buildNumber string) string {
+	return versionRegexp.ReplaceAllString(rawPath, "redhat-"+buildNumber) // replace with same build number
 }
 
 func normIndyURL(indyURL string) string {
@@ -190,61 +191,60 @@ func prepareCacheDirectories() {
 }
 
 // Deprecated as folo is the preferred way now.
-func decorateChecksums(downloads []string) []string {
-	downSet := make(map[string]bool)
-	for _, artifact := range downloads {
-		downSet[artifact] = true
-		if strings.HasSuffix(artifact, ".md5") || strings.HasSuffix(artifact, ".sha1") {
-			continue
-		}
-		downSet[artifact+".md5"] = true
-		downSet[artifact+".sha1"] = true
-		// downSet[artifact+".sha256"] = true
-	}
-	finalDownloads := []string{}
-	for artifact := range downSet {
-		finalDownloads = append(finalDownloads, artifact)
-	}
-	return finalDownloads
-}
+// func decorateChecksums(downloads []string) []string {
+// 	downSet := make(map[string]bool)
+// 	for _, artifact := range downloads {
+// 		downSet[artifact] = true
+// 		if strings.HasSuffix(artifact, ".md5") || strings.HasSuffix(artifact, ".sha1") {
+// 			continue
+// 		}
+// 		downSet[artifact+".md5"] = true
+// 		downSet[artifact+".sha1"] = true
+// 		// downSet[artifact+".sha256"] = true
+// 	}
+// 	finalDownloads := []string{}
+// 	for artifact := range downSet {
+// 		finalDownloads = append(finalDownloads, artifact)
+// 	}
+// 	return finalDownloads
+// }
 
-func replaceHost(artifact, oldIndyHost, targetIndyHost string) string {
-	// First, replace the embedded indy host to the target one
-	repl := oldIndyHost
-	if common.IsEmptyString(repl) {
-		repl = artifact[strings.Index(artifact, "//")+2:]
-		repl = repl[:strings.Index(repl, "/")]
-	}
-	return strings.ReplaceAll(artifact, repl, targetIndyHost)
-}
+// func replaceHost(artifact, oldIndyHost, targetIndyHost string) string {
+// 	// First, replace the embedded indy host to the target one
+// 	repl := oldIndyHost
+// 	if common.IsEmptyString(repl) {
+// 		repl = artifact[strings.Index(artifact, "//")+2:]
+// 		repl = repl[:strings.Index(repl, "/")]
+// 	}
+// 	return strings.ReplaceAll(artifact, repl, targetIndyHost)
+// }
 
-func replaceBuildName(artifact, buildName string) string {
-	// Second, if use a new build name we should replace the old one with it.
-	final := artifact
-	if !common.IsEmptyString(buildName) {
-		buildPat := regexp.MustCompile(`https{0,1}:\/\/.+\/api\/folo\/track\/(build-\S+?)\/.*`)
-		buildPat.FindAllStringSubmatch(final, 0)
-		matches := buildPat.FindAllStringSubmatch(final, -1)
-		if matches != nil {
-			for i := range matches {
-				get := matches[i][1]
-				if strings.HasPrefix(get, "build-") {
-					final = strings.ReplaceAll(final, get, buildName)
-					break
-				}
-			}
-		}
-	}
-	return final
-}
+// func replaceBuildName(artifact, buildName string) string {
+// 	// Second, if use a new build name we should replace the old one with it.
+// 	final := artifact
+// 	if !common.IsEmptyString(buildName) {
+// 		buildPat := regexp.MustCompile(`https{0,1}:\/\/.+\/api\/folo\/track\/(build-\S+?)\/.*`)
+// 		buildPat.FindAllStringSubmatch(final, 0)
+// 		matches := buildPat.FindAllStringSubmatch(final, -1)
+// 		if matches != nil {
+// 			for i := range matches {
+// 				get := matches[i][1]
+// 				if strings.HasPrefix(get, "build-") {
+// 					final = strings.ReplaceAll(final, get, buildName)
+// 					break
+// 				}
+// 			}
+// 		}
+// 	}
+// 	return final
+// }
 
-// generate a random 5 digit  number for a build repo like "build-test-xxxxx"
+// generate a random 5 digit  number for a build repo like "build-test-9xxxxx"
 func generateRandomBuildName() string {
-	buildPrefix := "build-test-"
 	rand.Seed(time.Now().UnixNano())
-	min := 10000
-	max := 99999
-	return fmt.Sprintf(buildPrefix+"%v", rand.Intn(max-min)+min)
+	min := 900000
+	max := 999999
+	return fmt.Sprintf(BUILD_TEST_+"%v", rand.Intn(max-min)+min)
 }
 
 func concurrentRun(numWorkers int, artifacts map[string][]string, job func(originalArtiURL, targetArtiURL string) bool) bool {
