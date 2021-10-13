@@ -86,13 +86,26 @@ func prepareIndyGroup(indyURL, buildName string, buildMeta BuildMetadata) bool {
 	return result
 }
 
-func destroyIndyRepos(indyURL, buildType, buildName string) {
-	destroyIndyGroup(indyURL, buildType, buildName)
-	// destroyHosted(indyURL, buildName)
+//Delete group and hosted repo (with content)
+func DeleteIndyTestRepos(indyURL, packageType, buildName string) {
+	if !delAllowed(buildName) {
+		return
+	}
+	deleteIndyGroup(indyURL, packageType, buildName)
+	deleteIndyHosted(indyURL, packageType, buildName)
 }
 
-func destroyIndyHosted(indyURL, buildType, buildName string) {
-	URL := fmt.Sprintf("%s/api/admin/stores/%s/hosted/%s", indyURL, buildType, buildName)
+func delAllowed(buildName string) bool {
+	if strings.HasPrefix(buildName, BUILD_TEST_) {
+		return true
+	}
+	fmt.Printf("!!! Can not delete repo(s) %s (not test repo)", buildName)
+	return false
+}
+
+//Delete hosted repo and content
+func deleteIndyHosted(indyURL, buildType, buildName string) {
+	URL := fmt.Sprintf("%s/api/admin/stores/%s/hosted/%s?deleteContent=true", indyURL, buildType, buildName)
 	fmt.Printf("Start deleting hosted repo %s\n", buildName)
 	result := delRequest(URL)
 	if result {
@@ -100,7 +113,7 @@ func destroyIndyHosted(indyURL, buildType, buildName string) {
 	}
 }
 
-func destroyIndyGroup(indyURL, buildType, buildName string) {
+func deleteIndyGroup(indyURL, buildType, buildName string) {
 	URL := fmt.Sprintf("%s/api/admin/stores/%s/group/%s", indyURL, buildType, buildName)
 	fmt.Printf("Start deleting group repo %s\n", buildName)
 	result := delRequest(URL)
@@ -108,6 +121,7 @@ func destroyIndyGroup(indyURL, buildType, buildName string) {
 		fmt.Printf("Group repo %s deleted successfully\n", buildName)
 	}
 }
+
 func getRequest(url string) (string, bool) {
 	content, _, succeeded := common.HTTPRequest(url, common.MethodGet, nil, true, nil, nil, "", false)
 	return content, succeeded

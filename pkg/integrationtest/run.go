@@ -52,8 +52,7 @@ const (
  * h. Retrieve the metadata files from step #f again, check if the new version is available
  * i. Clean the test files by rollback the promotion.
  * j. Retrieve the metadata files from step #f again, check if the new version is gone
- * k. (optional) Delete the temp group and the hosted repo A. This is not mandatory because we use renamed versions.
- *    Leaving them there won't affect the following tests.
+ * k. Delete the temp group and the hosted repo A.
  */
 func Run(indyBaseUrl, datasetRepoUrl, buildId string) {
 	//Create target folder (to store downloaded files), e.g, 'target'
@@ -98,7 +97,8 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId string) {
 
 	funcJ()
 
-	funcK()
+	//k. Delete the temp group and the hosted repo
+	cleanUp(indyBaseUrl, getPackageType(info), buildName)
 }
 
 func cloneRepo(datasetRepoUrl string) string {
@@ -172,6 +172,6 @@ func funcJ() {
 
 }
 
-func funcK() {
-
+func cleanUp(indyBaseUrl, packageType, buildName string) {
+	buildtest.DeleteIndyTestRepos(indyBaseUrl, packageType, buildName)
 }
