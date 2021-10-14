@@ -45,6 +45,8 @@ pipeline {
             value: /home/jenkins/gopath
           - name: GOPROXY
             value: https://proxy.golang.org
+          - name: TEST_MOUNT_PATH
+            value: /opt/indy/it
           resources:
             requests:
               memory: 4Gi
