@@ -16,8 +16,22 @@
 
 package common
 
+import "regexp"
+
+const (
+	ENVAR_TEST_MOUNT_PATH = "TEST_MOUNT_PATH"
+)
+
+var (
+	versionRegexp = regexp.MustCompile(`redhat-([0-9]+)`)
+)
+
 func RePanic(e error) {
 	if e != nil {
 		panic(e)
 	}
+}
+
+func AlterUploadPath(rawPath, buildNumber string) string {
+	return versionRegexp.ReplaceAllString(rawPath, "redhat-"+buildNumber) // replace with same build number
 }

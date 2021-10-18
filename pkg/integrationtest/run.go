@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"os"
 	"path"
 	"strings"
 	"time"
@@ -31,15 +30,18 @@ import (
 	"github.com/commonjava/indy-tests/pkg/common"
 	"github.com/commonjava/indy-tests/pkg/dataset"
 	"github.com/commonjava/indy-tests/pkg/datest"
+	"github.com/commonjava/indy-tests/pkg/promotetest"
 )
 
 const (
-	TARGET_DIR       = "target"
-	DEFAULT_ROUTINES = 4
+	DEFAULT_ROUTINES     = 4
+	TMP_METADATA_DIR     = "/tmp/metadata"
+	PROMOTE_TARGET_STORE = "pnc-builds"
 )
 
 /*
- * When we start the integration test, it will (in order):
+ * Run integration test. If dryRun is true, prints the repo creation, down/upload, promote, and clean up info without really doing them.
+ * If not dryRun, it will (in order):
  *
  * a. Load the corresponding dataset
  * b. Retrieve the metadata files in da.json to make sure they can be downloaded successfully
@@ -47,18 +49,14 @@ const (
  * d. Download the files in tracking "downloads" section from this temp group
  * e. Download the files in tracking "uploads" section, and rename all the files (jar, pom, and so on)
  *    with a new version suffix and upload them again to the hosted repo A
- * f. Retrieve the metadata files that will be updated by below promotion (we need to foresee those metadata files)
+ * f. Retrieve the metadata files that will be affected by promotion (we need to foresee those metadata files)
  * g. Promote the files in hosted repo A to hosted repo pnc-builds.
  * h. Retrieve the metadata files from step #f again, check if the new version is available
  * i. Clean the test files by rollback the promotion.
  * j. Retrieve the metadata files from step #f again, check if the new version is gone
  * k. Delete the temp group and the hosted repo A. Delete folo record.
  */
-func Run(indyBaseUrl, datasetRepoUrl, buildId string) {
-	//Create target folder (to store downloaded files), e.g, 'target'
-	err := os.MkdirAll(TARGET_DIR, 0755)
-	common.RePanic(err)
-
+func Run(indyBaseUrl, datasetRepoUrl, buildId string, dryRun bool) {
 	//a. Clone dataset repo
 	datasetRepoDir := cloneRepo(datasetRepoUrl)
 	fmt.Printf("Clone SUCCESS, dir: %s\n", datasetRepoDir)
@@ -81,25 +79,57 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId string) {
 	foloFileLoc := path.Join(datasetRepoDir, buildId, dataset.TRACKING_JSON)
 	foloTrackContent := common.GetFoloRecordFromFile(foloFileLoc)
 	originalIndy := getOriginalIndyBaseUrl(foloTrackContent.Uploads[0].LocalUrl)
-	processNum := 1
 	prev := t
-	buildName := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, foloTrackContent, processNum)
+	buildName := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, foloTrackContent, DEFAULT_ROUTINES, dryRun)
 	t = time.Now()
 	elapsed = t.Sub(prev)
 	fmt.Printf("Create mock group(%s) and download/upload SUCCESS, elapsed(s): %f\n", buildName, elapsed.Seconds())
 
-	funcF()
+	//f. Retrieve the metadata files which will be affected by promotion
+	metaFiles := calculateMetadataFiles()
+	metaFilesLoc := path.Join(TMP_METADATA_DIR, "before-promote")
+	newVersionNum := buildName[len(buildtest.BUILD_TEST_):]
+	exists := true
+	retrieveMetadataAndValidate(metaFiles, metaFilesLoc, newVersionNum, !exists)
 
-	funcG()
+	//g. Promote the files in hosted repo A to hosted repo pnc-builds
+	foloTrackId := buildName
+	sourceStore, targetStore := getPromotionSrcTargetStores(packageType, buildName, foloTrackContent)
+	resp, _, success := promotetest.DoRun(indyBaseUrl, foloTrackId, sourceStore, targetStore, newVersionNum, foloTrackContent, dryRun)
+	if !success {
+		return
+	}
 
-	funcH()
+	//h. Retrieve the metadata files again, check the new version
+	metaFilesLoc = path.Join(TMP_METADATA_DIR, "after-promote")
+	retrieveMetadataAndValidate(metaFiles, metaFilesLoc, newVersionNum, exists)
 
-	funcI()
+	//i. Rollback the promotion
+	promotetest.Rollback(indyBaseUrl, resp, dryRun)
 
-	funcJ()
+	//h. Retrieve the metadata files again, check the new version is GONE
+	metaFilesLoc = path.Join(TMP_METADATA_DIR, "rollback")
+	retrieveMetadataAndValidate(metaFiles, metaFilesLoc, newVersionNum, !exists)
 
 	//k. Delete the temp group and the hosted repo, and folo record
-	cleanUp(indyBaseUrl, packageType, buildName)
+	cleanUp(indyBaseUrl, packageType, buildName, dryRun)
+}
+
+func getPromotionSrcTargetStores(packageType, buildName string, foloTrackContent common.TrackedContent) (string, string) {
+	toks := strings.Split(foloTrackContent.Uploads[0].StoreKey, ":")
+	sourceStore := fmt.Sprintf("%s:%s:%s", toks[0], toks[1], buildName)
+	targetStore := packageType + ":hosted:" + PROMOTE_TARGET_STORE
+	fmt.Printf("Get promotion src: %s, target: %s", sourceStore, targetStore)
+	return sourceStore, targetStore
+}
+
+func calculateMetadataFiles() []string {
+	return nil
+}
+
+//TODO
+func retrieveMetadataAndValidate(metaFiles []string, filesLoc, versionNumber string, exist bool) (bool, error) {
+	return true, nil
 }
 
 func cloneRepo(datasetRepoUrl string) string {
@@ -153,27 +183,12 @@ func getOriginalIndyBaseUrl(localUrl string) string {
 	return u.Scheme + "://" + u.Host
 }
 
-func funcF() {
+func cleanUp(indyBaseUrl, packageType, buildName string, dryRun bool) {
+	if dryRun {
+		fmt.Printf("Dry run cleanUp\n")
+		return
+	}
 
-}
-
-func funcG() {
-
-}
-
-func funcH() {
-
-}
-
-func funcI() {
-
-}
-
-func funcJ() {
-
-}
-
-func cleanUp(indyBaseUrl, packageType, buildName string) {
 	buildtest.DeleteIndyTestRepos(indyBaseUrl, packageType, buildName)
 
 	if common.DeleteFoloRecord(indyBaseUrl, buildName) {

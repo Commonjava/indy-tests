@@ -39,7 +39,12 @@ func decideMeta(buildType string) *BuildMetadata {
 	return nil
 }
 
-func prepareIndyRepos(indyURL, buildName string, buildMeta BuildMetadata) bool {
+func prepareIndyRepos(indyURL, buildName string, buildMeta BuildMetadata, dryRun bool) bool {
+	if dryRun {
+		fmt.Printf("Dry run prepareIndyRepos\n")
+		return true
+	}
+
 	if !prepareIndyHosted(indyURL, buildMeta.buildType, buildName) {
 		return false
 	}

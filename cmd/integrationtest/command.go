@@ -19,6 +19,7 @@ package integrationtest
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/commonjava/indy-tests/pkg/integrationtest"
 	"github.com/spf13/cobra"
@@ -27,7 +28,7 @@ import (
 func NewIntegrationTestCmd() *cobra.Command {
 
 	exec := &cobra.Command{
-		Use:     "integrationtest $indyBaseUrl $datasetRepoUrl $buildId",
+		Use:     "integrationtest $indyBaseUrl $datasetRepoUrl $buildId $dryRun(optional)",
 		Short:   "To run integration test",
 		Example: "integrationtest http://indy-admin-stage.xyz.com https://gitlab.xyz.com/nos/nos-integrationtest-dataset 2836",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -35,7 +36,11 @@ func NewIntegrationTestCmd() *cobra.Command {
 				cmd.Help()
 				os.Exit(1)
 			}
-			integrationtest.Run(args[0], args[1], args[2])
+			dryRun := false
+			if len(args) == 4 {
+				dryRun, _ = strconv.ParseBool(args[3])
+			}
+			integrationtest.Run(args[0], args[1], args[2], dryRun)
 		},
 	}
 

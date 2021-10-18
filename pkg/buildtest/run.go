@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -19,20 +18,18 @@ const (
 	BUILD_TEST_      = "build-test-"
 )
 
-var (
-	versionRegexp = regexp.MustCompile(`redhat-([0-9]+)`)
-)
-
 func Run(originalIndy, foloId, replacement, targetIndy, buildType string, processNum int) {
 	origIndy := originalIndy
 	if !strings.HasPrefix(origIndy, "http://") {
 		origIndy = "http://" + origIndy
 	}
 	foloTrackContent := common.GetFoloRecord(origIndy, foloId)
-	DoRun(originalIndy, replacement, targetIndy, buildType, foloTrackContent, processNum)
+	DoRun(originalIndy, replacement, targetIndy, buildType, foloTrackContent, processNum, false)
 }
 
-func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackContent common.TrackedContent, processNum int) string {
+// Create the repo structure and do the download/upload
+func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackContent common.TrackedContent,
+	processNum int, dryRun bool) string {
 	_, validated := common.ValidateTargetIndy(originalIndy)
 	if !validated {
 		os.Exit(1)
@@ -46,15 +43,19 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 
 	// Prepare the indy repos for the whole testing
 	buildMeta := decideMeta(buildType)
-	if !prepareIndyRepos("http://"+targetIndyHost, newBuildName, *buildMeta) {
+	if !prepareIndyRepos("http://"+targetIndyHost, newBuildName, *buildMeta, dryRun) {
 		os.Exit(1)
 	}
 
-	prepareCacheDirectories()
+	downloadDir, uploadDir := prepareDownUploadDirectories(foloTrackContent.TrackingKey.Id)
 
 	downloads := prepareDownloadEntriesByFolo(targetIndy, newBuildName, foloTrackContent)
 	downloadFunc := func(originalArtiURL, targetArtiURL string) bool {
-		fileLoc := path.Join(TMP_DOWNLOAD_DIR, path.Base(targetArtiURL))
+		fileLoc := path.Join(downloadDir, path.Base(targetArtiURL))
+		if dryRun {
+			fmt.Printf("Dry run download, url: %s\n", targetArtiURL)
+			return true
+		}
 		return common.DownloadFile(targetArtiURL, fileLoc)
 	}
 	broken := false
@@ -80,8 +81,18 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 	}
 
 	uploadFunc := func(originalArtiURL, targetArtiURL string) bool {
-		cacheFile := path.Join(TMP_UPLOAD_DIR, path.Base(originalArtiURL))
-		downloaded := common.DownloadUploadFileForCache(originalArtiURL, cacheFile)
+		if dryRun {
+			fmt.Printf("Dry run upload, originalArtiURL: %s, targetArtiURL: %s\n", originalArtiURL, targetArtiURL)
+			return true
+		}
+
+		cacheFile := path.Join(uploadDir, path.Base(originalArtiURL))
+		var downloaded bool
+		if common.FileOrDirExists(cacheFile) { // already downloaded, reuse it
+			downloaded = true
+		} else {
+			downloaded = common.DownloadUploadFileForCache(originalArtiURL, cacheFile)
+		}
 		if downloaded {
 			return common.UploadFile(targetArtiURL, cacheFile)
 		}
@@ -156,16 +167,12 @@ func prepareUploadEntriesByFolo(originalIndyURL, targetIndyURL, newBuildId strin
 func createUploadUrls(originalIndy, targetIndy, newBuildId string, up common.TrackedContentEntry) (string, string) {
 	storePath := common.StoreKeyToPath(up.StoreKey) // original store, e.g, maven/hosted/build-1234
 	uploadPath := path.Join("api/content", storePath, up.Path)
-	orgiUpUrl := fmt.Sprintf("%s%s", originalIndy, uploadPath)                    // original url to retrieve artifact
-	alteredUploadPath := alterUploadPath(up.Path, newBuildId[len(BUILD_TEST_):])  // replace version number
-	toks := strings.Split(storePath, "/")                                         // get package/type, e.g., maven/hosted
-	targetStorePath := path.Join(toks[0], toks[1], newBuildId, alteredUploadPath) // e.g, maven/hosted/build-913413/org/...
+	orgiUpUrl := fmt.Sprintf("%s%s", originalIndy, uploadPath)                          // original url to retrieve artifact
+	alteredUploadPath := common.AlterUploadPath(up.Path, newBuildId[len(BUILD_TEST_):]) // replace version number
+	toks := strings.Split(storePath, "/")                                               // get package/type, e.g., maven/hosted
+	targetStorePath := path.Join(toks[0], toks[1], newBuildId, alteredUploadPath)       // e.g, maven/hosted/build-913413/org/...
 	targUpUrl := fmt.Sprintf("%sapi/folo/track/%s/%s", targetIndy, newBuildId, targetStorePath)
 	return orgiUpUrl, targUpUrl
-}
-
-func alterUploadPath(rawPath, buildNumber string) string {
-	return versionRegexp.ReplaceAllString(rawPath, "redhat-"+buildNumber) // replace with same build number
 }
 
 func normIndyURL(indyURL string) string {
@@ -179,21 +186,32 @@ func normIndyURL(indyURL string) string {
 	return indy
 }
 
-func prepareCacheDirectories() {
-	if !common.FileOrDirExists(TMP_DOWNLOAD_DIR) {
-		os.Mkdir(TMP_DOWNLOAD_DIR, os.FileMode(0755))
+func prepareDownUploadDirectories(buildId string) (string, string) {
+	// use "/tmp/download", which will be dropped after each run
+	downloadDir := TMP_DOWNLOAD_DIR
+	if !common.FileOrDirExists(downloadDir) {
+		os.Mkdir(downloadDir, os.FileMode(0755))
 	}
-	if !common.FileOrDirExists(TMP_DOWNLOAD_DIR) {
-		fmt.Printf("Error: cannot create directory %s for file downloading.\n", TMP_DOWNLOAD_DIR)
+	if !common.FileOrDirExists(downloadDir) {
+		fmt.Printf("Error: cannot create directory %s for file downloading.\n", downloadDir)
 		os.Exit(1)
 	}
-	if !common.FileOrDirExists(TMP_UPLOAD_DIR) {
-		os.Mkdir(TMP_UPLOAD_DIR, os.FileMode(0755))
+
+	// use ENVAR_TEST_MOUNT_PATH + "bulidId/upload" if this envar is defined
+	uploadDir := TMP_UPLOAD_DIR
+	envarTestMountPath := os.Getenv(common.ENVAR_TEST_MOUNT_PATH)
+	if envarTestMountPath != "" {
+		uploadDir = path.Join(envarTestMountPath, buildId, "upload")
 	}
-	if !common.FileOrDirExists(TMP_UPLOAD_DIR) {
-		fmt.Printf("Error: cannot create directory %s for caching uploading files.\n", TMP_UPLOAD_DIR)
+	if !common.FileOrDirExists(uploadDir) {
+		os.Mkdir(uploadDir, os.FileMode(0755))
+	}
+	if !common.FileOrDirExists(uploadDir) {
+		fmt.Printf("Error: cannot create directory %s for caching uploading files.\n", uploadDir)
 		os.Exit(1)
 	}
+	fmt.Printf("Prepared download dir: %s, upload dir: %s", downloadDir, uploadDir)
+	return downloadDir, uploadDir
 }
 
 // generate a random 5 digit  number for a build repo like "build-test-9xxxxx"

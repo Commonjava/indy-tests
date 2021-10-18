@@ -69,7 +69,7 @@ var isNotLast = template.FuncMap{
 	},
 }
 
-func promote(indyURL, source, target string, paths []string) {
+func promote(indyURL, source, target string, paths []string, dryRun bool) (string, int, bool) {
 	promoteVars := IndyPromoteVars{
 		Source: source,
 		Target: target,
@@ -79,12 +79,39 @@ func promote(indyURL, source, target string, paths []string) {
 
 	URL := fmt.Sprintf("%s/api/promotion/paths/promote", indyURL)
 
+	if dryRun {
+		fmt.Printf("Dry run promote request:\n %s\n\n", promote)
+		return "", 200, true
+	}
+
 	fmt.Printf("Start promote request:\n %s\n\n", promote)
-	respText, _, result := common.HTTPRequest(URL, common.MethodPost, nil, true, strings.NewReader(promote), nil, "", false)
+	respText, code, result := common.HTTPRequest(URL, common.MethodPost, nil, true, strings.NewReader(promote), nil, "", false)
 
 	if result {
 		fmt.Printf("Promote Done. Result is:\n %s\n\n", respText)
 	} else {
 		fmt.Printf("Promote Error. Result is:\n %s\n\n", respText)
 	}
+
+	return respText, code, result
+}
+
+func Rollback(indyURL, promoteResult string, dryRun bool) (string, int, bool) {
+	URL := fmt.Sprintf("%s/api/promotion/paths/rollback", indyURL)
+
+	if dryRun {
+		fmt.Printf("Dry run rollback request:\n %s\n\n", URL)
+		return "", 200, true
+	}
+
+	fmt.Printf("Start rollback request:\n %s\n\n", URL)
+	respText, code, result := common.HTTPRequest(URL, common.MethodPost, nil, true, strings.NewReader(promoteResult), nil, "", false)
+
+	if result {
+		fmt.Printf("Rollback Done. Result is:\n %s\n\n", respText)
+	} else {
+		fmt.Printf("Rollback Error. Result is:\n %s\n\n", respText)
+	}
+
+	return respText, code, result
 }
