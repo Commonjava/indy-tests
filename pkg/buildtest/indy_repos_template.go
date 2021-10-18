@@ -3,7 +3,6 @@ package buildtest
 import (
 	"bytes"
 	"log"
-	"os"
 	"text/template"
 )
 
@@ -45,7 +44,6 @@ func IndyGroupTemplate(indyGroupVars *IndyGroupVars) string {
 	err := t.Execute(&buf, indyGroupVars)
 	if err != nil {
 		log.Fatal("executing template:", err)
-		os.Exit(1)
 	}
 
 	return buf.String()
@@ -83,7 +81,6 @@ func IndyHostedTemplate(indyHostedVars *IndyHostedVars) string {
 	err := t.Execute(&buf, indyHostedVars)
 	if err != nil {
 		log.Fatal("executing template:", err)
-		os.Exit(1)
 	}
 
 	return buf.String()

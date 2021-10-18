@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"log"
-	"os"
 	"strings"
 
 	common "github.com/commonjava/indy-tests/pkg/common"
@@ -57,7 +56,6 @@ func IndyPromoteJSONTemplate(indyPromoteVars *IndyPromoteVars) string {
 	err := t.Execute(&buf, indyPromoteVars)
 	if err != nil {
 		log.Fatal("executing template:", err)
-		os.Exit(1)
 	}
 
 	return buf.String()
