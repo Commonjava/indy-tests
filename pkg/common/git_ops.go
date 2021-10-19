@@ -21,8 +21,8 @@ import (
 	"os"
 	"strings"
 
-	"gopkg.in/src-d/go-git.v4"
-	"gopkg.in/src-d/go-git.v4/config"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 )
 
 func DownloadRepo(gitURL string) string {
@@ -47,6 +47,7 @@ func getRepo(gitURL, directory string, clone bool) (r *git.Repository, err error
 			URL:               gitURL,
 			Progress:          os.Stdout,
 			RecurseSubmodules: git.DefaultSubmoduleRecursionDepth,
+			InsecureSkipTLS:   true,
 		})
 	} else {
 		fmt.Printf("Open existed repo %s\n", directory)

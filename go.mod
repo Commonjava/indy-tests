@@ -9,5 +9,5 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/cobra v0.0.3
-	gopkg.in/src-d/go-git.v4 v4.13.1
+	github.com/go-git/go-git/v5 v5.4.2
 )
