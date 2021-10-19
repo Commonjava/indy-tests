@@ -191,7 +191,7 @@ func prepareDownUploadDirectories(buildId string) (string, string) {
 	// use "/tmp/download", which will be dropped after each run
 	downloadDir := TMP_DOWNLOAD_DIR
 	if !common.FileOrDirExists(downloadDir) {
-		os.Mkdir(downloadDir, os.FileMode(0755))
+		os.MkdirAll(downloadDir, os.FileMode(0755))
 	}
 	if !common.FileOrDirExists(downloadDir) {
 		fmt.Printf("Error: cannot create directory %s for file downloading.\n", downloadDir)
@@ -205,7 +205,7 @@ func prepareDownUploadDirectories(buildId string) (string, string) {
 		uploadDir = path.Join(envarTestMountPath, buildId, "upload")
 	}
 	if !common.FileOrDirExists(uploadDir) {
-		os.Mkdir(uploadDir, os.FileMode(0755))
+		os.MkdirAll(uploadDir, os.FileMode(0755))
 	}
 	if !common.FileOrDirExists(uploadDir) {
 		fmt.Printf("Error: cannot create directory %s for caching uploading files.\n", uploadDir)
