@@ -19,7 +19,6 @@ package integrationtest
 import (
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/commonjava/indy-tests/pkg/integrationtest"
 	"github.com/spf13/cobra"
@@ -28,21 +27,24 @@ import (
 func NewIntegrationTestCmd() *cobra.Command {
 
 	exec := &cobra.Command{
-		Use:     "integrationtest $indyBaseUrl $datasetRepoUrl $buildId $dryRun(optional)",
+		Use:     "integrationtest $indyBaseUrl $datasetRepoUrl $buildId $promoteTargetStore(optional) --dryRun(optional)",
 		Short:   "To run integration test",
-		Example: "integrationtest http://indy-admin-stage.xyz.com https://gitlab.xyz.com/nos/nos-integrationtest-dataset 2836",
+		Example: "integrationtest http://indy.xyz.com https://gitlab.xyz.com/nos/nos-integrationtest-dataset 2836",
 		Run: func(cmd *cobra.Command, args []string) {
 			if !validate(args) {
 				cmd.Help()
 				os.Exit(1)
 			}
-			dryRun := false
-			if len(args) == 4 {
-				dryRun, _ = strconv.ParseBool(args[3])
+			dryRun, _ := cmd.Flags().GetBool("dryRun")
+			promoteTargetStore := ""
+			if len(args) >= 4 {
+				promoteTargetStore = args[3]
 			}
-			integrationtest.Run(args[0], args[1], args[2], dryRun)
+			integrationtest.Run(args[0], args[1], args[2], promoteTargetStore, dryRun)
 		},
 	}
+
+	exec.Flags().BoolP("dryRun", "d", false, "Print msg for repo creation, down/upload, promote, and clean up, without really doing it.")
 
 	return exec
 }

@@ -56,7 +56,7 @@ const (
  * j. Retrieve the metadata files from step #f again, check if the new version is gone
  * k. Delete the temp group and the hosted repo A. Delete folo record.
  */
-func Run(indyBaseUrl, datasetRepoUrl, buildId string, dryRun bool) {
+func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore string, dryRun bool) {
 	//a. Clone dataset repo
 	datasetRepoDir := cloneRepo(datasetRepoUrl)
 	fmt.Printf("Clone SUCCESS, dir: %s\n", datasetRepoDir)
@@ -94,7 +94,7 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId string, dryRun bool) {
 
 	//g. Promote the files in hosted repo A to hosted repo pnc-builds
 	foloTrackId := buildName
-	sourceStore, targetStore := getPromotionSrcTargetStores(packageType, buildName, foloTrackContent)
+	sourceStore, targetStore := getPromotionSrcTargetStores(packageType, buildName, promoteTargetStore, foloTrackContent)
 	resp, _, success := promotetest.DoRun(indyBaseUrl, foloTrackId, sourceStore, targetStore, newVersionNum, foloTrackContent, dryRun)
 	if !success {
 		return
@@ -115,11 +115,14 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId string, dryRun bool) {
 	cleanUp(indyBaseUrl, packageType, buildName, dryRun)
 }
 
-func getPromotionSrcTargetStores(packageType, buildName string, foloTrackContent common.TrackedContent) (string, string) {
+func getPromotionSrcTargetStores(packageType, buildName, targetStoreName string, foloTrackContent common.TrackedContent) (string, string) {
 	toks := strings.Split(foloTrackContent.Uploads[0].StoreKey, ":")
 	sourceStore := fmt.Sprintf("%s:%s:%s", toks[0], toks[1], buildName)
-	targetStore := packageType + ":hosted:" + PROMOTE_TARGET_STORE
-	fmt.Printf("Get promotion src: %s, target: %s", sourceStore, targetStore)
+	if targetStoreName == "" {
+		targetStoreName = PROMOTE_TARGET_STORE
+	}
+	targetStore := packageType + ":hosted:" + targetStoreName
+	fmt.Printf("Get promotion sourceStore: %s, targetStore: %s", sourceStore, targetStore)
 	return sourceStore, targetStore
 }
 

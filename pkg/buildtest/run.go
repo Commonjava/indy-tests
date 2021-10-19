@@ -88,7 +88,8 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 
 		cacheFile := path.Join(uploadDir, path.Base(originalArtiURL))
 		var downloaded bool
-		if common.FileOrDirExists(cacheFile) { // already downloaded, reuse it
+		if common.FileOrDirExists(cacheFile) {
+			fmt.Printf("File already downloaded, reuse cacheFile: %s\n", cacheFile)
 			downloaded = true
 		} else {
 			downloaded = common.DownloadUploadFileForCache(originalArtiURL, cacheFile)
