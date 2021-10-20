@@ -4,9 +4,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"strings"
 )
+
+func ValidateTargetIndyOrExit(targetIndy string) (string, bool) {
+	targetIndyHost, validated := ValidateTargetIndy(targetIndy)
+	if !validated {
+		os.Exit(1)
+	}
+	return targetIndyHost, validated
+}
 
 func ValidateTargetIndy(targetIndy string) (string, bool) {
 	indyHost := targetIndy

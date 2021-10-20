@@ -69,10 +69,9 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore string, dryRun
 	start := time.Now()
 
 	//b. Retrieve the metadata files in da.json
-	retrieveMetadata(indyBaseUrl, datasetRepoDir, buildId, info)
+	retrieveAlignmentMetadata(indyBaseUrl, datasetRepoDir, buildId, info)
 	t := time.Now()
-	elapsed := t.Sub(start)
-	fmt.Printf("Retrieve metadata SUCCESS, elapsed(s): %f\n", elapsed.Seconds())
+	fmt.Printf("Retrieve metadata SUCCESS, elapsed(s): %f\n", t.Sub(start).Seconds())
 
 	//c/d/e. Create a mock build group, download files, rename to-be-uploaded files
 	packageType := getPackageType(info)
@@ -82,13 +81,12 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore string, dryRun
 	prev := t
 	buildName := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, foloTrackContent, 1, dryRun)
 	t = time.Now()
-	elapsed = t.Sub(prev)
-	fmt.Printf("Create mock group(%s) and download/upload SUCCESS, elapsed(s): %f\n", buildName, elapsed.Seconds())
+	fmt.Printf("Create mock group(%s) and download/upload SUCCESS, elapsed(s): %f\n", buildName, t.Sub(prev).Seconds())
 
 	//f. Retrieve the metadata files which will be affected by promotion
 	metaFiles := calculateMetadataFiles()
 	metaFilesLoc := path.Join(TMP_METADATA_DIR, "before-promote")
-	newVersionNum := buildName[len(buildtest.BUILD_TEST_):]
+	newVersionNum := buildName[len(common.BUILD_TEST_):]
 	exists := true
 	retrieveMetadataAndValidate(metaFiles, metaFilesLoc, newVersionNum, !exists)
 
@@ -139,7 +137,7 @@ func cloneRepo(datasetRepoUrl string) string {
 	return common.DownloadRepo(datasetRepoUrl)
 }
 
-func retrieveMetadata(indyBaseUrl, datasetRepoDir, buildId string, info dataset.Info) {
+func retrieveAlignmentMetadata(indyBaseUrl, datasetRepoDir, buildId string, info dataset.Info) {
 	fileLoc := path.Join(datasetRepoDir, buildId, dataset.DA_JSON)
 
 	// Read jsonFile

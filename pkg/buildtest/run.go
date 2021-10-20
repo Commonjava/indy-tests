@@ -2,12 +2,10 @@ package buildtest
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"path"
 	"strings"
 	"sync"
-	"time"
 
 	common "github.com/commonjava/indy-tests/pkg/common"
 )
@@ -15,7 +13,6 @@ import (
 const (
 	TMP_DOWNLOAD_DIR = "/tmp/download"
 	TMP_UPLOAD_DIR   = "/tmp/upload"
-	BUILD_TEST_      = "build-test-"
 )
 
 func Run(originalIndy, foloId, replacement, targetIndy, buildType string, processNum int) {
@@ -30,16 +27,11 @@ func Run(originalIndy, foloId, replacement, targetIndy, buildType string, proces
 // Create the repo structure and do the download/upload
 func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackContent common.TrackedContent,
 	processNum int, dryRun bool) string {
-	_, validated := common.ValidateTargetIndy(originalIndy)
-	if !validated {
-		os.Exit(1)
-	}
-	targetIndyHost, validated := common.ValidateTargetIndy(targetIndy)
-	if !validated {
-		os.Exit(1)
-	}
 
-	newBuildName := generateRandomBuildName()
+	common.ValidateTargetIndyOrExit(originalIndy)
+	targetIndyHost, _ := common.ValidateTargetIndyOrExit(targetIndy)
+
+	newBuildName := common.GenerateRandomBuildName()
 
 	// Prepare the indy repos for the whole testing
 	buildMeta := decideMeta(buildType)
@@ -168,10 +160,10 @@ func prepareUploadEntriesByFolo(originalIndyURL, targetIndyURL, newBuildId strin
 func createUploadUrls(originalIndy, targetIndy, newBuildId string, up common.TrackedContentEntry) (string, string) {
 	storePath := common.StoreKeyToPath(up.StoreKey) // original store, e.g, maven/hosted/build-1234
 	uploadPath := path.Join("api/content", storePath, up.Path)
-	orgiUpUrl := fmt.Sprintf("%s%s", originalIndy, uploadPath)                          // original url to retrieve artifact
-	alteredUploadPath := common.AlterUploadPath(up.Path, newBuildId[len(BUILD_TEST_):]) // replace version number
-	toks := strings.Split(storePath, "/")                                               // get package/type, e.g., maven/hosted
-	targetStorePath := path.Join(toks[0], toks[1], newBuildId, alteredUploadPath)       // e.g, maven/hosted/build-913413/org/...
+	orgiUpUrl := fmt.Sprintf("%s%s", originalIndy, uploadPath)                                 // original url to retrieve artifact
+	alteredUploadPath := common.AlterUploadPath(up.Path, newBuildId[len(common.BUILD_TEST_):]) // replace version number
+	toks := strings.Split(storePath, "/")                                                      // get package/type, e.g., maven/hosted
+	targetStorePath := path.Join(toks[0], toks[1], newBuildId, alteredUploadPath)              // e.g, maven/hosted/build-913413/org/...
 	targUpUrl := fmt.Sprintf("%sapi/folo/track/%s/%s", targetIndy, newBuildId, targetStorePath)
 	return orgiUpUrl, targUpUrl
 }
@@ -213,14 +205,6 @@ func prepareDownUploadDirectories(buildId string) (string, string) {
 	}
 	fmt.Printf("Prepared download dir: %s, upload dir: %s", downloadDir, uploadDir)
 	return downloadDir, uploadDir
-}
-
-// generate a random 5 digit  number for a build repo like "build-test-9xxxxx"
-func generateRandomBuildName() string {
-	rand.Seed(time.Now().UnixNano())
-	min := 900000
-	max := 999999
-	return fmt.Sprintf(BUILD_TEST_+"%v", rand.Intn(max-min)+min)
 }
 
 func concurrentRun(numWorkers int, artifacts map[string][]string, job func(originalArtiURL, targetArtiURL string) bool) bool {

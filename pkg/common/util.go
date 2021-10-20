@@ -16,9 +16,15 @@
 
 package common
 
-import "regexp"
+import (
+	"fmt"
+	"math/rand"
+	"regexp"
+	"time"
+)
 
 const (
+	BUILD_TEST_           = "build-test-"
 	ENVAR_TEST_MOUNT_PATH = "TEST_MOUNT_PATH"
 )
 
@@ -32,6 +38,14 @@ func RePanic(e error) {
 	}
 }
 
-func AlterUploadPath(rawPath, buildNumber string) string {
-	return versionRegexp.ReplaceAllString(rawPath, "redhat-"+buildNumber) // replace with same build number
+func AlterUploadPath(rawPath, newReleaseNumber string) string {
+	return versionRegexp.ReplaceAllString(rawPath, "redhat-"+newReleaseNumber) // replace with new rel number
+}
+
+// generate a random 5 digit  number for a build repo like "build-test-9xxxxx"
+func GenerateRandomBuildName() string {
+	rand.Seed(time.Now().UnixNano())
+	min := 900000
+	max := 999999
+	return fmt.Sprintf(BUILD_TEST_+"%v", rand.Intn(max-min)+min)
 }

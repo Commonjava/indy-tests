@@ -101,7 +101,7 @@ func DeleteIndyTestRepos(indyURL, packageType, buildName string) {
 }
 
 func delAllowed(buildName string) bool {
-	if strings.HasPrefix(buildName, BUILD_TEST_) {
+	if strings.HasPrefix(buildName, common.BUILD_TEST_) {
 		return true
 	}
 	fmt.Printf("!!! Can not delete repo(s) %s (not test repo)", buildName)
@@ -127,9 +127,9 @@ func deleteIndyGroup(indyURL, buildType, buildName string) {
 	}
 }
 
-func getRequest(url string) (string, bool) {
-	content, _, succeeded := common.HTTPRequest(url, common.MethodGet, nil, true, nil, nil, "", false)
-	return content, succeeded
+func getRequest(url string) (string, int, bool) {
+	content, code, succeeded := common.HTTPRequest(url, common.MethodGet, nil, true, nil, nil, "", false)
+	return content, code, succeeded
 }
 
 func postRequest(url string, data io.Reader) (string, bool) {
