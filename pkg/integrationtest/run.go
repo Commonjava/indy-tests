@@ -56,7 +56,7 @@ const (
  * j. Retrieve the metadata files from step #f again, check if the new version is gone
  * k. Delete the temp group and the hosted repo A. Delete folo record.
  */
-func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore string, dryRun bool) {
+func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, dryRun bool) {
 	//a. Clone dataset repo
 	datasetRepoDir := cloneRepo(datasetRepoUrl)
 	fmt.Printf("Clone SUCCESS, dir: %s\n", datasetRepoDir)
@@ -83,34 +83,50 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore string, dryRun
 	t = time.Now()
 	fmt.Printf("Create mock group(%s) and download/upload SUCCESS, elapsed(s): %f\n", buildName, t.Sub(prev).Seconds())
 
+	//k. Delete the temp group and the hosted repo, and folo record
+	defer cleanUp(indyBaseUrl, packageType, buildName, dryRun)
+
 	//f. Retrieve the metadata files which will be affected by promotion
-	metaFiles := calculateMetadataFiles()
+	metaFiles := calculateMetadataFiles(foloTrackContent)
 	metaFilesLoc := path.Join(TMP_METADATA_DIR, "before-promote")
 	newVersionNum := buildName[len(common.BUILD_TEST_):]
 	exists := true
-	retrieveMetadataAndValidate(metaFiles, metaFilesLoc, newVersionNum, !exists)
+	passed, e := retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, !exists)
+	if !passed {
+		logger.Infof("Metadata check failed (before). Errors: %s", e.Error())
+		return
+	}
+	fmt.Printf("Metadata validate (before)\n")
 
 	//g. Promote the files in hosted repo A to hosted repo pnc-builds
 	foloTrackId := buildName
 	sourceStore, targetStore := getPromotionSrcTargetStores(packageType, buildName, promoteTargetStore, foloTrackContent)
 	resp, _, success := promotetest.DoRun(indyBaseUrl, foloTrackId, sourceStore, targetStore, newVersionNum, foloTrackContent, dryRun)
 	if !success {
+		fmt.Printf("Promote failed, %s\n", resp)
 		return
 	}
 
 	//h. Retrieve the metadata files again, check the new version
 	metaFilesLoc = path.Join(TMP_METADATA_DIR, "after-promote")
-	retrieveMetadataAndValidate(metaFiles, metaFilesLoc, newVersionNum, exists)
+	passed, e = retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, exists)
+	if !passed {
+		logger.Infof("Metadata check failed (after promotion). Errors: %s", e.Error())
+		return
+	}
+	fmt.Printf("Metadata validate (after promotion)\n")
 
 	//i. Rollback the promotion
 	promotetest.Rollback(indyBaseUrl, resp, dryRun)
 
 	//h. Retrieve the metadata files again, check the new version is GONE
 	metaFilesLoc = path.Join(TMP_METADATA_DIR, "rollback")
-	retrieveMetadataAndValidate(metaFiles, metaFilesLoc, newVersionNum, !exists)
-
-	//k. Delete the temp group and the hosted repo, and folo record
-	cleanUp(indyBaseUrl, packageType, buildName, dryRun)
+	passed, e = retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, !exists)
+	if !passed {
+		logger.Infof("Metadata check failed (rollback). Errors: %s", e.Error())
+		return
+	}
+	fmt.Printf("Metadata validate (rollback)\n")
 }
 
 func getPromotionSrcTargetStores(packageType, buildName, targetStoreName string, foloTrackContent common.TrackedContent) (string, string) {
@@ -124,13 +140,60 @@ func getPromotionSrcTargetStores(packageType, buildName, targetStoreName string,
 	return sourceStore, targetStore
 }
 
-func calculateMetadataFiles() []string {
-	return nil
+func calculateMetadataFiles(foloTrackContent common.TrackedContent) []string {
+	paths := []string{}
+	for _, up := range foloTrackContent.Uploads {
+		if strings.HasSuffix(up.Path, ".pom") {
+			versionsDir := path.Dir(up.Path)
+			artifactDir := path.Dir(versionsDir)
+			metadataPath := path.Join(artifactDir, common.MAVEN_METADATA_XML)
+			paths = append(paths, metadataPath)
+		}
+	}
+	return paths
 }
 
-//TODO
-func retrieveMetadataAndValidate(metaFiles []string, filesLoc, versionNumber string, exist bool) (bool, error) {
-	return true, nil
+func retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo string, metaFiles []string, filesLoc, versionNumber string, exist bool) (bool, error) {
+	if metaCheckRepo == "" {
+		fmt.Printf("Skip metadata check, no metaCheckRepo specified.\n")
+		return true, nil
+	}
+
+	repoType := "group"
+	repoName := metaCheckRepo
+
+	// Also support the full repo name, e.g, maven:group:test-builds
+	index := strings.Index(metaCheckRepo, ":")
+	if index > 0 {
+		toks := strings.Split(metaCheckRepo, ":")
+		repoType = toks[1]
+		repoName = toks[2]
+	}
+
+	// Download meta files
+	for _, p := range metaFiles {
+		url := common.GetIndyContentUrl(indyBaseUrl, packageType, repoType, repoName, p)
+		common.DownloadFile(url, path.Join(filesLoc, p))
+	}
+
+	// Check version
+	success := true
+	var e common.MultiError
+	for _, p := range metaFiles {
+		file := path.Join(filesLoc, p)
+		// read file and see if version exist
+		content := string(common.ReadByteFromFile(file))
+		index := strings.Index(content, common.REDHAT_+versionNumber)
+		isExist := false
+		if index >= 0 {
+			isExist = true
+		}
+		if isExist != exist {
+			success = false
+			e.Append(p)
+		}
+	}
+	return success, &e
 }
 
 func cloneRepo(datasetRepoUrl string) string {

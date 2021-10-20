@@ -20,12 +20,15 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
+	"strings"
 	"time"
 )
 
 const (
 	BUILD_TEST_           = "build-test-"
 	ENVAR_TEST_MOUNT_PATH = "TEST_MOUNT_PATH"
+	MAVEN_METADATA_XML    = "maven-metadata.xml"
+	REDHAT_               = "redhat-"
 )
 
 var (
@@ -39,7 +42,7 @@ func RePanic(e error) {
 }
 
 func AlterUploadPath(rawPath, newReleaseNumber string) string {
-	return versionRegexp.ReplaceAllString(rawPath, "redhat-"+newReleaseNumber) // replace with new rel number
+	return versionRegexp.ReplaceAllString(rawPath, REDHAT_+newReleaseNumber) // replace with new rel number
 }
 
 // generate a random 5 digit  number for a build repo like "build-test-9xxxxx"
@@ -48,4 +51,16 @@ func GenerateRandomBuildName() string {
 	min := 900000
 	max := 999999
 	return fmt.Sprintf(BUILD_TEST_+"%v", rand.Intn(max-min)+min)
+}
+
+type MultiError struct {
+	errors []string
+}
+
+func (e *MultiError) Error() string {
+	return strings.Join(e.errors, ", ")
+}
+
+func (e *MultiError) Append(err string) {
+	e.errors = append(e.errors, err)
 }
