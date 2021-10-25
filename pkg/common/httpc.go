@@ -321,7 +321,7 @@ func download(url, storeFileName string) bool {
 	// Create dir if not exists
 	dirLoc := path.Dir(filePath)
 	if !FileOrDirExists(dirLoc) {
-		os.MkdirAll(dirLoc, 0666)
+		os.MkdirAll(dirLoc, 0755)
 	}
 
 	// Create the file
