@@ -32,6 +32,9 @@ func DoRun(indyBaseUrl, foloTrackId, sourceStore, targetStore, newVersionNum str
 	}
 
 	for _, up := range foloTrackContent.Uploads {
+		if common.IsMetadata(up.Path) {
+			continue // ignore matedata
+		}
 		if newVersionNum == "" {
 			paths = append(paths, up.Path)
 		} else {

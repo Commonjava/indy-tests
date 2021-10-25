@@ -64,3 +64,7 @@ func (e *MultiError) Error() string {
 func (e *MultiError) Append(err string) {
 	e.errors = append(e.errors, err)
 }
+
+func IsMetadata(path string) bool {
+	return strings.Index(path, MAVEN_METADATA_XML) > 0
+}
