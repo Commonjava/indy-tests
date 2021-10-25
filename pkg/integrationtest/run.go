@@ -96,7 +96,7 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 		logger.Infof("Metadata check failed (before). Errors: %s", e.Error())
 		return
 	}
-	fmt.Printf("Metadata validate (before)\n")
+	fmt.Printf("Metadata validate (before) SUCCESS\n")
 
 	//g. Promote the files in hosted repo A to hosted repo pnc-builds
 	foloTrackId := buildName
@@ -108,25 +108,31 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	}
 
 	//h. Retrieve the metadata files again, check the new version
+	fmt.Printf("Waiting 30s...\n")
+	time.Sleep(30 * time.Second) // wait for Indy event handled
+
 	metaFilesLoc = path.Join(TMP_METADATA_DIR, "after-promote")
 	passed, e = retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, exists)
 	if !passed {
 		logger.Infof("Metadata check failed (after promotion). Errors: %s", e.Error())
 		return
 	}
-	fmt.Printf("Metadata validate (after promotion)\n")
+	fmt.Printf("Metadata validate (after promotion) SUCCESS\n")
 
 	//i. Rollback the promotion
 	promotetest.Rollback(indyBaseUrl, resp, dryRun)
 
 	//h. Retrieve the metadata files again, check the new version is GONE
+	fmt.Printf("Waiting 30s...\n")
+	time.Sleep(30 * time.Second)
+
 	metaFilesLoc = path.Join(TMP_METADATA_DIR, "rollback")
 	passed, e = retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, !exists)
 	if !passed {
 		logger.Infof("Metadata check failed (rollback). Errors: %s", e.Error())
 		return
 	}
-	fmt.Printf("Metadata validate (rollback)\n")
+	fmt.Printf("Metadata validate (rollback) SUCCESS\n")
 }
 
 func getPromotionSrcTargetStores(packageType, buildName, targetStoreName string, foloTrackContent common.TrackedContent) (string, string) {
