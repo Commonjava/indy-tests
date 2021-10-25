@@ -318,16 +318,19 @@ func download(url, storeFileName string) bool {
 		filePath = "./" + filePath
 	}
 
-	// Check and create the file
-	if FileOrDirExists(filePath) {
-		filePath = filePath + ".1"
+	// Create dir if not exists
+	dirLoc := path.Dir(filePath)
+	if !FileOrDirExists(dirLoc) {
+		os.MkdirAll(dirLoc, 0666)
 	}
+
+	// Create the file
 	out, err := os.Create(filePath)
-	defer out.Close()
 	if err != nil {
 		fmt.Printf("Warning: cannot download file due to io error! error is %s\n", err.Error())
 		return false
 	} else {
+		defer out.Close()
 		_, err = io.Copy(out, resp.Body)
 		if err != nil {
 			fmt.Printf("Warning: cannot download file due to io error! error is %s\n", err.Error())
