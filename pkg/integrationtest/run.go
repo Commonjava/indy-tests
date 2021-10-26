@@ -56,7 +56,7 @@ const (
  * j. Retrieve the metadata files from step #f again, check if the new version is gone
  * k. Delete the temp group and the hosted repo A. Delete folo record.
  */
-func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, dryRun bool) {
+func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, clearCache, dryRun bool) {
 	//a. Clone dataset repo
 	datasetRepoDir := cloneRepo(datasetRepoUrl)
 	fmt.Printf("Clone SUCCESS, dir: %s\n", datasetRepoDir)
@@ -78,8 +78,9 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	foloFileLoc := path.Join(datasetRepoDir, buildId, dataset.TRACKING_JSON)
 	foloTrackContent := common.GetFoloRecordFromFile(foloFileLoc)
 	originalIndy := getOriginalIndyBaseUrl(foloTrackContent.Uploads[0].LocalUrl)
+
 	prev := t
-	buildName := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, foloTrackContent, 1, dryRun)
+	buildName := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, foloTrackContent, 1, clearCache, dryRun)
 	t = time.Now()
 	fmt.Printf("Create mock group(%s) and download/upload SUCCESS, elapsed(s): %f\n", buildName, t.Sub(prev).Seconds())
 

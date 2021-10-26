@@ -21,12 +21,12 @@ func Run(originalIndy, foloId, replacement, targetIndy, buildType string, proces
 		origIndy = "http://" + origIndy
 	}
 	foloTrackContent := common.GetFoloRecord(origIndy, foloId)
-	DoRun(originalIndy, replacement, targetIndy, buildType, foloTrackContent, processNum, false)
+	DoRun(originalIndy, replacement, targetIndy, buildType, foloTrackContent, processNum, false, false)
 }
 
 // Create the repo structure and do the download/upload
 func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackContent common.TrackedContent,
-	processNum int, dryRun bool) string {
+	processNum int, clearCache, dryRun bool) string {
 
 	common.ValidateTargetIndyOrExit(originalIndy)
 	targetIndyHost, _ := common.ValidateTargetIndyOrExit(targetIndy)
@@ -39,7 +39,7 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 		os.Exit(1)
 	}
 
-	downloadDir, uploadDir := prepareDownUploadDirectories(foloTrackContent.TrackingKey.Id)
+	downloadDir, uploadDir := prepareDownUploadDirectories(foloTrackContent.TrackingKey.Id, clearCache)
 
 	downloads := prepareDownloadEntriesByFolo(targetIndy, newBuildName, foloTrackContent)
 	downloadFunc := func(originalArtiURL, targetArtiURL string) bool {
@@ -179,7 +179,7 @@ func normIndyURL(indyURL string) string {
 	return indy
 }
 
-func prepareDownUploadDirectories(buildId string) (string, string) {
+func prepareDownUploadDirectories(buildId string, clearCache bool) (string, string) {
 	// use "/tmp/download", which will be dropped after each run
 	downloadDir := TMP_DOWNLOAD_DIR
 	if !common.FileOrDirExists(downloadDir) {
@@ -195,10 +195,15 @@ func prepareDownUploadDirectories(buildId string) (string, string) {
 	envarTestMountPath := os.Getenv(common.ENVAR_TEST_MOUNT_PATH)
 	if envarTestMountPath != "" {
 		uploadDir = path.Join(envarTestMountPath, buildId, "upload")
+		if clearCache {
+			os.RemoveAll(uploadDir)
+		}
 	}
+
 	if !common.FileOrDirExists(uploadDir) {
 		os.MkdirAll(uploadDir, os.FileMode(0755))
 	}
+
 	if !common.FileOrDirExists(uploadDir) {
 		fmt.Printf("Error: cannot create directory %s for caching uploading files.\n", uploadDir)
 		os.Exit(1)
