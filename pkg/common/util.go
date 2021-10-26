@@ -45,11 +45,11 @@ func AlterUploadPath(rawPath, newReleaseNumber string) string {
 	return versionRegexp.ReplaceAllString(rawPath, REDHAT_+newReleaseNumber) // replace with new rel number
 }
 
-// generate a random 5 digit  number for a build repo like "build-test-9xxxxx"
+// generate a random 5 digit number for a build repo like "build-test-9xxxx"
 func GenerateRandomBuildName() string {
 	rand.Seed(time.Now().UnixNano())
-	min := 900000
-	max := 999999
+	min := 90000
+	max := 99999
 	return fmt.Sprintf(BUILD_TEST_+"%v", rand.Intn(max-min)+min)
 }
 

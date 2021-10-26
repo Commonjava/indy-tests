@@ -142,7 +142,7 @@ func getPromotionSrcTargetStores(packageType, buildName, targetStoreName string,
 		targetStoreName = PROMOTE_TARGET_STORE
 	}
 	targetStore := packageType + ":hosted:" + targetStoreName
-	fmt.Printf("Get promotion sourceStore: %s, targetStore: %s", sourceStore, targetStore)
+	fmt.Printf("Get promotion sourceStore: %s, targetStore: %s\n", sourceStore, targetStore)
 	return sourceStore, targetStore
 }
 
@@ -189,6 +189,7 @@ func retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo string,
 		file := path.Join(filesLoc, p)
 		// read file and see if version exist
 		content := string(common.ReadByteFromFile(file))
+		fmt.Printf("Check metadata, file: %s, content:\n%s\n", file, content)
 		index := strings.Index(content, common.REDHAT_+versionNumber)
 		isExist := false
 		if index >= 0 {
