@@ -37,16 +37,18 @@ func NewIntegrationTestCmd() *cobra.Command {
 			}
 			clearCache, _ := cmd.Flags().GetBool("clearCache")
 			dryRun, _ := cmd.Flags().GetBool("dryRun")
+			keepPod, _ := cmd.Flags().GetBool("keepPod")
 			metaCheckRepo := ""
 			if len(args) >= 5 {
 				metaCheckRepo = args[4]
 			}
-			integrationtest.Run(args[0], args[1], args[2], args[3], metaCheckRepo, clearCache, dryRun)
+			integrationtest.Run(args[0], args[1], args[2], args[3], metaCheckRepo, clearCache, dryRun, keepPod)
 		},
 	}
 
-	exec.Flags().BoolP("clearCache", "c", false, "Clear cached built artifact files. This will force download from original again.")
+	exec.Flags().BoolP("clearCache", "c", false, "Clear cached built artifact files. This will force download from origin again.")
 	exec.Flags().BoolP("dryRun", "d", false, "Print msg for repo creation, down/upload, promote, and clean up, without really doing it.")
+	exec.Flags().BoolP("keepPod", "k", false, "Keep the pod after test to debug.")
 
 	return exec
 }

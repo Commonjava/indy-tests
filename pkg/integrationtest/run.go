@@ -56,7 +56,7 @@ const (
  * j. Retrieve the metadata files from step #f again, check if the new version is gone
  * k. Delete the temp group and the hosted repo A. Delete folo record.
  */
-func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, clearCache, dryRun bool) {
+func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, clearCache, dryRun, keepPod bool) {
 	//a. Clone dataset repo
 	datasetRepoDir := cloneRepo(datasetRepoUrl)
 	fmt.Printf("Clone SUCCESS, dir: %s\n", datasetRepoDir)
@@ -134,6 +134,11 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 		return
 	}
 	fmt.Printf("Metadata validate (rollback) SUCCESS\n")
+
+	// Pause and keep pod for debugging
+	if keepPod {
+		time.Sleep(30 * time.Minute)
+	}
 }
 
 func getPromotionSrcTargetStores(packageType, buildName, targetStoreName string, foloTrackContent common.TrackedContent) (string, string) {
