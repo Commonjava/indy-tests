@@ -137,6 +137,7 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 
 	// Pause and keep pod for debugging
 	if keepPod {
+		fmt.Printf("Waiting 30m...\n")
 		time.Sleep(30 * time.Minute)
 	}
 }
@@ -194,16 +195,23 @@ func retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo string,
 	for _, p := range metaFiles {
 		file := path.Join(filesLoc, p)
 		// read file and see if version exist
-		content := string(common.ReadByteFromFile(file))
-		fmt.Printf("Check metadata, file: %s, content:\n%s\n", file, content)
-		index := strings.Index(content, common.REDHAT_+versionNumber)
-		isExist := false
-		if index >= 0 {
-			isExist = true
-		}
-		if isExist != exist {
+		if !common.FileOrDirExists(file) {
+			fmt.Printf("Check metadata FAILED, file: %s, file not exists\n", file)
 			success = false
 			e.Append(p)
+			continue
+		} else {
+			content := string(common.ReadByteFromFile(file))
+			fmt.Printf("Check metadata, file: %s, content:\n%s\n", file, content)
+			index := strings.Index(content, common.REDHAT_+versionNumber)
+			isExist := false
+			if index >= 0 {
+				isExist = true
+			}
+			if isExist != exist {
+				success = false
+				e.Append(p)
+			}
 		}
 	}
 	return success, &e
