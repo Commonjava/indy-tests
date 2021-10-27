@@ -40,21 +40,21 @@ const (
 )
 
 /*
- * Run integration test. If dryRun is true, prints the repo creation, down/upload, promote, and clean up info without really doing them.
- * If not dryRun, it will (in order):
+ * Run integration test. If dryRun is true, it prints the repo creation, file down/upload, promote, rollback,
+ * and clean-up info without really doing them. Otherwise, it will run (in order):
  *
  * a. Load the corresponding dataset
- * b. Retrieve the metadata files in da.json to make sure they can be downloaded successfully
- * c. Create a temp group which is same to PNC temp build group (with a hosted repo, namely A)
- * d. Download the files in tracking "downloads" section from this temp group
- * e. Download the files in tracking "uploads" section, and rename all the files (jar, pom, and so on)
- *    with a new version suffix and upload them again to the hosted repo A
- * f. Retrieve the metadata files that will be affected by promotion (we need to foresee those metadata files)
- * g. Promote the files in hosted repo A to hosted repo pnc-builds.
- * h. Retrieve the metadata files from step #f again, check if the new version is available
- * i. Clean the test files by rollback the promotion.
- * j. Retrieve the metadata files from step #f again, check if the new version is gone
- * k. Delete the temp group and the hosted repo A. Delete folo record.
+ * b. Retrieve the metadata files in da.json to check they can be downloaded successfully
+ * c. Create a temporary build group G (same as PNC build group), and a hosted repo A
+ * d. Download the files in tracking "downloads" from the group G
+ * e. Download the files in tracking "uploads" from origin, and rename all the files (jar, pom, and so on)
+ *    with a new version suffix and upload them to the hosted repo A. Seal the folo record afterwards.
+ * f. Retrieve the metadata files that will be affected by promotion, check that the new version not exists
+ * g. Promote the files in hosted repo A to target hosted repo, e.g, pnc-builds
+ * h. Retrieve the metadata files from step #f again, check that the new version is available
+ * i. Rollback the promotion
+ * j. Retrieve the metadata files from step #f again, check that the new version is gone
+ * k. Clean up. Delete the build group G and the hosted repo A. Delete folo record.
  */
 func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, clearCache, dryRun, keepPod bool) {
 	//a. Clone dataset repo
