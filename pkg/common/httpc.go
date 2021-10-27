@@ -190,7 +190,7 @@ func HTTPRequest(url, method string, auth Authenticate, needResult bool, dataPay
 		fmt.Println(err)
 		return respText, StatusUnknown, false
 	}
-	if headers != nil && len(headers) > 0 {
+	if len(headers) > 0 {
 		for key, val := range headers {
 			req.Header.Add(key, val)
 		}
@@ -350,12 +350,13 @@ func UploadFile(uploadUrl, cacheFile string) bool {
 	}
 	defer data.Close()
 
-	mimeType, err := GetFileContentType(data)
-	if err != nil {
-		mimeType = "text/plain"
-	}
-	headers := map[string]string{"Content-Type": mimeType}
-	_, _, succeeded := HTTPRequest(uploadUrl, MethodPut, nil, false, data, headers, "", false)
+	// !!! this breaks the file content !!!
+	// mimeType, err := GetFileContentType(data)
+	// if err != nil {
+	// 	mimeType = "text/plain"
+	// }
+	// headers := map[string]string{"Content-Type": mimeType}
+	_, _, succeeded := HTTPRequest(uploadUrl, MethodPut, nil, false, data, nil, "", false)
 	if succeeded {
 		end := time.Now()
 		diff := end.Sub(start)
