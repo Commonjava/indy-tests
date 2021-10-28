@@ -63,7 +63,7 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 
 	//Load the info.json
 	var info dataset.Info
-	infoFileLoc := path.Join(datasetRepoDir, buildId, dataset.INFO_JSON)
+	infoFileLoc := getInfoFileLoc(datasetRepoDir, buildId)
 	json.Unmarshal(common.ReadByteFromFile(infoFileLoc), &info)
 
 	start := time.Now()
@@ -140,6 +140,12 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 		fmt.Printf("Waiting 30m...\n")
 		time.Sleep(30 * time.Minute)
 	}
+}
+
+func getInfoFileLoc(datasetRepoDir, buildId string) string {
+	// Support group build dataset. E.g., in case of "11237/builds/###", info.json is in dir "11237/".
+	toks := strings.Split(buildId, "/")
+	return path.Join(datasetRepoDir, toks[0], dataset.INFO_JSON)
 }
 
 func getPromotionSrcTargetStores(packageType, buildName, targetStoreName string, foloTrackContent common.TrackedContent) (string, string) {
