@@ -54,7 +54,7 @@ pipeline {
             limits:
               memory: 8Gi
               cpu: 4000m
-          workingDir: "/home/jenkins/it"
+          workingDir: "/home/jenkins"
           volumeMounts:
           - name: vol-indy-integration-test
             mountPath: "/home/jenkins/it"

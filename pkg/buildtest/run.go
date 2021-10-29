@@ -208,7 +208,7 @@ func prepareDownUploadDirectories(buildId string, clearCache bool) (string, stri
 		fmt.Printf("Error: cannot create directory %s for caching uploading files.\n", uploadDir)
 		os.Exit(1)
 	}
-	fmt.Printf("Prepared download dir: %s, upload dir: %s", downloadDir, uploadDir)
+	fmt.Printf("Prepared download dir: %s, upload dir: %s\n", downloadDir, uploadDir)
 	return downloadDir, uploadDir
 }
 
