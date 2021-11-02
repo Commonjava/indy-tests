@@ -38,10 +38,11 @@ type Info struct {
 }
 
 const (
-	DATASET_DIR   = "dataset"
-	DA_JSON       = "da.json"
-	TRACKING_JSON = "tracking.json"
-	INFO_JSON     = "info.json"
+	DATASET_DIR      = "dataset"
+	DA_JSON          = "da.json"
+	TRACKING_JSON    = "tracking.json"
+	INFO_JSON        = "info.json"
+	ADDITIONAL_REPOS = "additional-repos.json"
 )
 
 /**

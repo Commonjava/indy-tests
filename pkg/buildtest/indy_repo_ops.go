@@ -39,7 +39,7 @@ func decideMeta(buildType string) *BuildMetadata {
 	return nil
 }
 
-func prepareIndyRepos(indyURL, buildName string, buildMeta BuildMetadata, dryRun bool) bool {
+func prepareIndyRepos(indyURL, buildName string, buildMeta BuildMetadata, additionalRepos []string, dryRun bool) bool {
 	if dryRun {
 		fmt.Printf("Dry run prepareIndyRepos\n")
 		return true
@@ -48,7 +48,7 @@ func prepareIndyRepos(indyURL, buildName string, buildMeta BuildMetadata, dryRun
 	if !prepareIndyHosted(indyURL, buildMeta.buildType, buildName) {
 		return false
 	}
-	return prepareIndyGroup(indyURL, buildName, buildMeta)
+	return prepareIndyGroup(indyURL, buildName, buildMeta, additionalRepos)
 }
 
 func prepareIndyHosted(indyURL, buildType, buildName string) bool {
@@ -70,12 +70,21 @@ func prepareIndyHosted(indyURL, buildType, buildName string) bool {
 	return result
 }
 
-func prepareIndyGroup(indyURL, buildName string, buildMeta BuildMetadata) bool {
+func prepareIndyGroup(indyURL, buildName string, buildMeta BuildMetadata, additionalRepos []string) bool {
+	var constituents []string
+
 	buildType, sharedGrpName := buildMeta.buildType, buildMeta.sharedGrpName
+	constituents = append(constituents, fmt.Sprintf("%s:hosted:%s", buildType, buildName),
+		fmt.Sprintf("%s:group:%s", buildType, sharedGrpName))
+
+	if additionalRepos != nil {
+		constituents = append(constituents, additionalRepos...)
+	}
+
 	groupVars := IndyGroupVars{
 		Name:         buildName,
 		Type:         buildMeta.buildType,
-		Constituents: []string{fmt.Sprintf("%s:hosted:%s", buildType, buildName), fmt.Sprintf("%s:group:%s", buildType, sharedGrpName)},
+		Constituents: constituents,
 	}
 	group := IndyGroupTemplate(&groupVars)
 

@@ -66,6 +66,10 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	infoFileLoc := getInfoFileLoc(datasetRepoDir, buildId)
 	json.Unmarshal(common.ReadByteFromFile(infoFileLoc), &info)
 
+	//Load the additional-repos.json
+	additionalReposFileLoc := path.Join(datasetRepoDir, buildId, dataset.ADDITIONAL_REPOS)
+	additionalRepos := getAdditionalRepos(additionalReposFileLoc)
+
 	start := time.Now()
 
 	//b. Retrieve the metadata files in da.json
@@ -80,7 +84,7 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	originalIndy := getOriginalIndyBaseUrl(foloTrackContent.Uploads[0].LocalUrl)
 
 	prev := t
-	buildName := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, foloTrackContent, 1, clearCache, dryRun)
+	buildName := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, foloTrackContent, additionalRepos, 1, clearCache, dryRun)
 	t = time.Now()
 	fmt.Printf("Create mock group(%s) and download/upload SUCCESS, elapsed(s): %f\n", buildName, t.Sub(prev).Seconds())
 
@@ -140,6 +144,16 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 		fmt.Printf("Waiting 30m...\n")
 		time.Sleep(30 * time.Minute)
 	}
+}
+
+func getAdditionalRepos(fileLoc string) []string {
+	if common.FileOrDirExists(fileLoc) {
+		byteValue := common.ReadByteFromFile(fileLoc)
+		var arr []string
+		json.Unmarshal([]byte(byteValue), &arr)
+		return arr
+	}
+	return nil
 }
 
 func getInfoFileLoc(datasetRepoDir, buildId string) string {

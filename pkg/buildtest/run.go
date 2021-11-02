@@ -21,11 +21,12 @@ func Run(originalIndy, foloId, replacement, targetIndy, buildType string, proces
 		origIndy = "http://" + origIndy
 	}
 	foloTrackContent := common.GetFoloRecord(origIndy, foloId)
-	DoRun(originalIndy, replacement, targetIndy, buildType, foloTrackContent, processNum, false, false)
+	DoRun(originalIndy, replacement, targetIndy, buildType, foloTrackContent, nil, processNum, false, false)
 }
 
 // Create the repo structure and do the download/upload
 func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackContent common.TrackedContent,
+	additionalRepos []string,
 	processNum int, clearCache, dryRun bool) string {
 
 	common.ValidateTargetIndyOrExit(originalIndy)
@@ -35,7 +36,7 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 
 	// Prepare the indy repos for the whole testing
 	buildMeta := decideMeta(buildType)
-	if !prepareIndyRepos("http://"+targetIndyHost, newBuildName, *buildMeta, dryRun) {
+	if !prepareIndyRepos("http://"+targetIndyHost, newBuildName, *buildMeta, additionalRepos, dryRun) {
 		os.Exit(1)
 	}
 
