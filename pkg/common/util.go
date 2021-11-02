@@ -17,12 +17,8 @@
 package common
 
 import (
-	"crypto/md5"
 	"fmt"
-	"io"
-	"log"
 	"math/rand"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -74,18 +70,18 @@ func IsMetadata(path string) bool {
 }
 
 func Md5Check(fileLoc, md5str string) {
-	f, err := os.Open(fileLoc)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-	h := md5.New()
-	if _, err := io.Copy(h, f); err != nil {
-		log.Fatal(err)
-	}
-	calculated := fmt.Sprintf("%x", h.Sum(nil))
-	match := strings.EqualFold(md5str, calculated)
-	if !match {
-		log.Fatal(fmt.Sprintf("Md5 not match, expected: %s, calculated: %s", md5str, calculated))
-	}
+	// f, err := os.Open(fileLoc)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer f.Close()
+	// h := md5.New()
+	// if _, err := io.Copy(h, f); err != nil {
+	// 	log.Fatal(err)
+	// }
+	// calculated := fmt.Sprintf("%x", h.Sum(nil))
+	// match := strings.EqualFold(md5str, calculated)
+	// if !match {
+	// 	log.Fatal(fmt.Sprintf("Md5 not match, expected: %s, calculated: %s", md5str, calculated))
+	// }
 }
