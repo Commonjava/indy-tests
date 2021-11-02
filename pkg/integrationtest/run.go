@@ -84,7 +84,7 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	originalIndy := getOriginalIndyBaseUrl(foloTrackContent.Uploads[0].LocalUrl)
 
 	prev := t
-	buildName := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, foloTrackContent, additionalRepos, 1, clearCache, dryRun)
+	buildName := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, foloTrackContent, additionalRepos, DEFAULT_ROUTINES, clearCache, dryRun)
 	t = time.Now()
 	fmt.Printf("Create mock group(%s) and download/upload SUCCESS, elapsed(s): %f\n", buildName, t.Sub(prev).Seconds())
 
