@@ -43,13 +43,17 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 	downloadDir, uploadDir := prepareDownUploadDirectories(foloTrackContent.TrackingKey.Id, clearCache)
 
 	downloads := prepareDownloadEntriesByFolo(targetIndy, newBuildName, foloTrackContent)
-	downloadFunc := func(originalArtiURL, targetArtiURL string) bool {
+	downloadFunc := func(md5str, originalArtiURL, targetArtiURL string) bool {
 		fileLoc := path.Join(downloadDir, path.Base(targetArtiURL))
 		if dryRun {
 			fmt.Printf("Dry run download, url: %s\n", targetArtiURL)
 			return true
 		}
-		return common.DownloadFile(targetArtiURL, fileLoc)
+		success := common.DownloadFile(targetArtiURL, fileLoc)
+		if success {
+			common.Md5Check(fileLoc, md5str)
+		}
+		return success
 	}
 	broken := false
 	if len(downloads) > 0 {
@@ -58,8 +62,8 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 		if processNum > 1 {
 			broken = !concurrentRun(processNum, downloads, downloadFunc)
 		} else {
-			for _, urls := range downloads {
-				broken = !downloadFunc(urls[0], urls[1])
+			for _, down := range downloads {
+				broken = !downloadFunc(down[0], down[1], down[2])
 				if broken {
 					break
 				}
@@ -73,7 +77,7 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 		fmt.Printf("Downloads artifacts handling finished.\n\n")
 	}
 
-	uploadFunc := func(originalArtiURL, targetArtiURL string) bool {
+	uploadFunc := func(md5str, originalArtiURL, targetArtiURL string) bool {
 		if dryRun {
 			fmt.Printf("Dry run upload, originalArtiURL: %s, targetArtiURL: %s\n", originalArtiURL, targetArtiURL)
 			return true
@@ -88,6 +92,7 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 			downloaded = common.DownloadUploadFileForCache(originalArtiURL, cacheFile)
 		}
 		if downloaded {
+			common.Md5Check(cacheFile, md5str)
 			return common.UploadFile(targetArtiURL, cacheFile)
 		}
 		return false
@@ -101,8 +106,8 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 		if processNum > 1 {
 			broken = !concurrentRun(processNum, uploads, uploadFunc)
 		} else {
-			for _, artiURLs := range uploads {
-				broken = !uploadFunc(artiURLs[0], artiURLs[1])
+			for _, up := range uploads {
+				broken = !uploadFunc(up[0], up[1], up[2])
 				if broken {
 					break
 				}
@@ -138,22 +143,20 @@ func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId string, foloRecord c
 	result := make(map[string][]string)
 	for _, down := range foloRecord.Downloads {
 		downUrl := fmt.Sprintf("%sapi/folo/track/%s/maven/group/%s%s", targetIndy, newBuildId, newBuildId, down.Path)
-		downTuple := []string{"", downUrl}
-		result[down.Path] = downTuple
+		result[down.Path] = []string{down.Md5, "", downUrl}
 	}
 	return result
 }
 
-// For uploads entries, firstly they should be downloaded from original indy server as they may not
-// exist in target indy server, so need to use original indy server to make the download url, and
-// use the target indy server to make the upload url
+// For uploads entries, firstly they should be downloaded from original indy server. We use original indy server to
+// make the download url, and use the target indy server to make the upload url
 func prepareUploadEntriesByFolo(originalIndyURL, targetIndyURL, newBuildId string, foloRecord common.TrackedContent) map[string][]string {
 	originalIndy := normIndyURL(originalIndyURL)
 	targetIndy := normIndyURL(targetIndyURL)
 	result := make(map[string][]string)
 	for _, up := range foloRecord.Uploads {
 		orgiUpUrl, targUpUrl := createUploadUrls(originalIndy, targetIndy, newBuildId, up)
-		result[up.Path] = []string{orgiUpUrl, targUpUrl}
+		result[up.Path] = []string{up.Md5, orgiUpUrl, targUpUrl}
 	}
 	return result
 }
@@ -213,7 +216,7 @@ func prepareDownUploadDirectories(buildId string, clearCache bool) (string, stri
 	return downloadDir, uploadDir
 }
 
-func concurrentRun(numWorkers int, artifacts map[string][]string, job func(originalArtiURL, targetArtiURL string) bool) bool {
+func concurrentRun(numWorkers int, artifacts map[string][]string, job func(md5, originalURL, targetURL string) bool) bool {
 	fmt.Printf("Start to run job in concurrent mode with thread number %v\n", numWorkers)
 	ch := make(chan []string, numWorkers*5) // This buffered number of chan can be anything as long as it's larger than numWorkers
 	var wg sync.WaitGroup
@@ -231,7 +234,7 @@ func concurrentRun(numWorkers int, artifacts map[string][]string, job func(origi
 					return
 				}
 				mu.Lock()
-				results = append(results, job(a[0], a[1]))
+				results = append(results, job(a[0], a[1], a[2]))
 				mu.Unlock()
 			}
 		}()
