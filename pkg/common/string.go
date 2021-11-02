@@ -24,3 +24,12 @@ import (
 func IsEmptyString(str string) bool {
 	return len(strings.TrimSpace(str)) == 0
 }
+
+func Contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+	return false
+}

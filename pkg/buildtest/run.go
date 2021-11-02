@@ -42,7 +42,7 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 
 	downloadDir, uploadDir := prepareDownUploadDirectories(foloTrackContent.TrackingKey.Id, clearCache)
 
-	downloads := prepareDownloadEntriesByFolo(targetIndy, newBuildName, foloTrackContent)
+	downloads := prepareDownloadEntriesByFolo(targetIndy, newBuildName, foloTrackContent, additionalRepos)
 	downloadFunc := func(md5str, originalArtiURL, targetArtiURL string) bool {
 		fileLoc := path.Join(downloadDir, path.Base(targetArtiURL))
 		if dryRun {
@@ -138,11 +138,17 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 
 // For downloads entries, we will get the paths and inject them to the final url of target indy
 // as they should be directly download from target indy.
-func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId string, foloRecord common.TrackedContent) map[string][]string {
+func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId string, foloRecord common.TrackedContent, additionalRepos []string) map[string][]string {
 	targetIndy := normIndyURL(targetIndyURL)
 	result := make(map[string][]string)
 	for _, down := range foloRecord.Downloads {
-		downUrl := fmt.Sprintf("%sapi/folo/track/%s/maven/group/%s%s", targetIndy, newBuildId, newBuildId, down.Path)
+		var p string
+		if common.Contains(additionalRepos, down.StoreKey) {
+			p = path.Join(strings.ReplaceAll(down.StoreKey, ":", "/"), down.Path)
+		} else {
+			p = path.Join("maven/group", newBuildId, down.Path)
+		}
+		downUrl := fmt.Sprintf("%sapi/folo/track/%s/%s", targetIndy, newBuildId, p)
 		result[down.Path] = []string{down.Md5, "", downUrl}
 	}
 	return result
