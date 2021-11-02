@@ -143,12 +143,15 @@ func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId string, foloRecord c
 	result := make(map[string][]string)
 	for _, down := range foloRecord.Downloads {
 		var p string
-		if common.Contains(additionalRepos, down.StoreKey) {
-			p = path.Join(strings.ReplaceAll(down.StoreKey, ":", "/"), down.Path)
+		repoPath := strings.ReplaceAll(down.StoreKey, ":", "/")
+		if down.AccessChannel == "GENERIC_PROXY" {
+			p = path.Join("api/content", repoPath, down.Path)
+		} else if common.Contains(additionalRepos, down.StoreKey) {
+			p = path.Join("api/folo/track", newBuildId, repoPath, down.Path)
 		} else {
-			p = path.Join("maven/group", newBuildId, down.Path)
+			p = path.Join("api/folo/track", newBuildId, "maven/group", newBuildId, down.Path)
 		}
-		downUrl := fmt.Sprintf("%sapi/folo/track/%s/%s", targetIndy, newBuildId, p)
+		downUrl := fmt.Sprintf("%s%s", targetIndy, p)
 		result[down.Path] = []string{down.Md5, "", downUrl}
 	}
 	return result
