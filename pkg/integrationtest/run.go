@@ -82,14 +82,21 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	foloFileLoc := path.Join(datasetRepoDir, buildId, dataset.TRACKING_JSON)
 	foloTrackContent := common.GetFoloRecordFromFile(foloFileLoc)
 	originalIndy := getOriginalIndyBaseUrl(foloTrackContent.Uploads[0].LocalUrl)
-
+	buildName := common.GenerateRandomBuildName()
 	prev := t
-	buildName := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, foloTrackContent, additionalRepos, DEFAULT_ROUTINES, clearCache, dryRun)
+	buildSuccess := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, buildName, foloTrackContent, additionalRepos, DEFAULT_ROUTINES, clearCache, dryRun)
 	t = time.Now()
 	fmt.Printf("Create mock group(%s) and download/upload SUCCESS, elapsed(s): %f\n", buildName, t.Sub(prev).Seconds())
 
 	//k. Delete the temp group and the hosted repo, and folo record
 	defer cleanUp(indyBaseUrl, packageType, buildName, dryRun)
+
+	// Advanced checks
+	if buildSuccess && !dryRun {
+		if !verifyFoloRecord(indyBaseUrl, buildName, foloTrackContent) {
+			return
+		}
+	}
 
 	//f. Retrieve the metadata files which will be affected by promotion
 	metaFiles := calculateMetadataFiles(foloTrackContent)
@@ -144,6 +151,50 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 		fmt.Printf("Waiting 30m...\n")
 		time.Sleep(30 * time.Minute)
 	}
+}
+
+func verifyFoloRecord(indyBaseUrl, buildName string, originalTrackContent common.TrackedContent) bool {
+	trackedContent := common.GetFoloRecord(indyBaseUrl, buildName)
+
+	if trackedContent.TrackingKey.Id != buildName {
+		logger.Infof("Verify folo record FAILED! TrackingKey.Id, expected: %s, got: %s", buildName, trackedContent.TrackingKey.Id)
+		return false
+	}
+
+	uploadErrors := checkFoloEntries("Uploads", trackedContent.Uploads, originalTrackContent.Uploads)
+	downloadErrors := checkFoloEntries("Downloads", trackedContent.Downloads, originalTrackContent.Downloads)
+
+	if len(uploadErrors) > 0 || len(downloadErrors) > 0 {
+		return false
+	}
+	logger.Info("Verify folo record SUCCESS!")
+	return true
+}
+
+func checkFoloEntries(title string, entries, originalEntries []common.TrackedContentEntry) []string {
+	logger.Infof("Verify folo records - %s", title)
+	m := make(map[string]string) // key: path, value: md5
+	for _, v := range entries {
+		m[v.Path] = v.Md5
+	}
+
+	var errors []string
+	// Check original paths are in the map and the md5 matches
+	for _, v := range originalEntries {
+		if m[v.Path] == "" {
+			errors = append(errors, "[Missing] "+v.Path)
+		} else if m[v.Path] != v.Md5 {
+			errors = append(errors, "[Md5-Error] "+v.Path)
+		}
+	}
+
+	if len(errors) > 0 {
+		logger.Info("Verify folo record FAILED! Errors:\n")
+		for _, v := range errors {
+			fmt.Println(v)
+		}
+	}
+	return errors
 }
 
 func getAdditionalRepos(fileLoc string) []string {

@@ -21,18 +21,17 @@ func Run(originalIndy, foloId, replacement, targetIndy, buildType string, proces
 		origIndy = "http://" + origIndy
 	}
 	foloTrackContent := common.GetFoloRecord(origIndy, foloId)
-	DoRun(originalIndy, replacement, targetIndy, buildType, foloTrackContent, nil, processNum, false, false)
+	newBuildName := common.GenerateRandomBuildName()
+	DoRun(originalIndy, replacement, targetIndy, buildType, newBuildName, foloTrackContent, nil, processNum, false, false)
 }
 
 // Create the repo structure and do the download/upload
-func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackContent common.TrackedContent,
+func DoRun(originalIndy, replacement, targetIndy, buildType, newBuildName string, foloTrackContent common.TrackedContent,
 	additionalRepos []string,
-	processNum int, clearCache, dryRun bool) string {
+	processNum int, clearCache, dryRun bool) bool {
 
 	common.ValidateTargetIndyOrExit(originalIndy)
 	targetIndyHost, _ := common.ValidateTargetIndyOrExit(targetIndy)
-
-	newBuildName := common.GenerateRandomBuildName()
 
 	// Prepare the indy repos for the whole testing
 	buildMeta := decideMeta(buildType)
@@ -121,7 +120,7 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 
 		fmt.Printf("Uploads artifacts handling finished.\n\n")
 	}
-	if !broken {
+	if !broken && !dryRun {
 		targIndy := targetIndy
 		if !strings.HasPrefix(targIndy, "http://") {
 			targIndy = "http://" + targIndy
@@ -133,7 +132,7 @@ func DoRun(originalIndy, replacement, targetIndy, buildType string, foloTrackCon
 		}
 	}
 
-	return newBuildName
+	return true
 }
 
 // For downloads entries, we will get the paths and inject them to the final url of target indy
