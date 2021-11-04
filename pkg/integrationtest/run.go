@@ -155,6 +155,7 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 
 func verifyFoloRecord(indyBaseUrl, buildName string, originalTrackContent common.TrackedContent) bool {
 	trackedContent := common.GetFoloRecord(indyBaseUrl, buildName)
+	fmt.Println(json.MarshalIndent(trackedContent, "", "  ")) //For debug
 
 	if trackedContent.TrackingKey.Id != buildName {
 		logger.Infof("Verify folo record FAILED! TrackingKey.Id, expected: %s, got: %s", buildName, trackedContent.TrackingKey.Id)
@@ -195,7 +196,7 @@ func checkFoloEntries(title string, alterPath func(string, string) string, build
 	}
 
 	if len(errors) > 0 {
-		logger.Info("Verify folo record FAILED! Errors:\n")
+		logger.Info("FAILED! Errors:")
 		for _, v := range errors {
 			fmt.Println(v)
 		}
