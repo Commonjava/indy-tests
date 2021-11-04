@@ -74,13 +74,13 @@ func IsMetadata(path string) bool {
 	return strings.Index(path, MAVEN_METADATA_XML) > 0
 }
 
-func isRegularFile(fileLoc string) bool {
+func IsRegularFile(fileLoc string) bool {
 	return regularFileRegexp.MatchString(fileLoc)
 }
 
 func Md5Check(fileLoc, md5str string) {
 	// Skip non-regular (i.e, metadata) files
-	if isRegularFile(fileLoc) {
+	if IsRegularFile(fileLoc) {
 		f, err := os.Open(fileLoc)
 		if err != nil {
 			log.Fatal(err)

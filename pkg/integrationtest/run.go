@@ -155,9 +155,9 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 
 func verifyFoloRecord(indyBaseUrl, buildName string, originalTrackContent common.TrackedContent) bool {
 	trackedContent := common.GetFoloRecord(indyBaseUrl, buildName)
-	//For debug
-	b, _ := json.MarshalIndent(trackedContent, "", "  ")
-	fmt.Println(string(b))
+	// For debug
+	// b, _ := json.MarshalIndent(trackedContent, "", "  ")
+	// fmt.Println(string(b))
 
 	if trackedContent.TrackingKey.Id != buildName {
 		logger.Infof("Verify folo record FAILED! TrackingKey.Id, expected: %s, got: %s", buildName, trackedContent.TrackingKey.Id)
@@ -190,10 +190,13 @@ func checkFoloEntries(title string, alterPath func(string, string) string, build
 		if alterPath != nil {
 			p = alterPath(v.Path, buildName[len(common.BUILD_TEST_):])
 		}
-		if m[p] == "" {
-			errors = append(errors, "[Missing] "+v.Path)
-		} else if m[p] != v.Md5 {
-			errors = append(errors, "[Md5-Error] "+v.Path)
+		// Not check metadata. e.g, when downloading a metadata through a group, folo will ingore it.
+		if common.IsRegularFile(p) {
+			if m[p] == "" {
+				errors = append(errors, "[Missing] "+v.Path)
+			} else if m[p] != v.Md5 {
+				errors = append(errors, "[Md5-Error] "+v.Path)
+			}
 		}
 	}
 
