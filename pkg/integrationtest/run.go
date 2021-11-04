@@ -161,8 +161,8 @@ func verifyFoloRecord(indyBaseUrl, buildName string, originalTrackContent common
 		return false
 	}
 
-	uploadErrors := checkFoloEntries("Uploads", trackedContent.Uploads, originalTrackContent.Uploads)
-	downloadErrors := checkFoloEntries("Downloads", trackedContent.Downloads, originalTrackContent.Downloads)
+	uploadErrors := checkFoloEntries("Uploads", common.AlterUploadPath, buildName, trackedContent.Uploads, originalTrackContent.Uploads)
+	downloadErrors := checkFoloEntries("Downloads", nil, "", trackedContent.Downloads, originalTrackContent.Downloads)
 
 	if len(uploadErrors) > 0 || len(downloadErrors) > 0 {
 		return false
@@ -171,7 +171,9 @@ func verifyFoloRecord(indyBaseUrl, buildName string, originalTrackContent common
 	return true
 }
 
-func checkFoloEntries(title string, entries, originalEntries []common.TrackedContentEntry) []string {
+func checkFoloEntries(title string, alterPath func(string, string) string, buildName string,
+	entries, originalEntries []common.TrackedContentEntry) []string {
+
 	logger.Infof("Verify folo records - %s", title)
 	m := make(map[string]string) // key: path, value: md5
 	for _, v := range entries {
@@ -181,9 +183,13 @@ func checkFoloEntries(title string, entries, originalEntries []common.TrackedCon
 	var errors []string
 	// Check original paths are in the map and the md5 matches
 	for _, v := range originalEntries {
-		if m[v.Path] == "" {
+		p := v.Path
+		if alterPath != nil {
+			p = alterPath(v.Path, buildName[len(common.BUILD_TEST_):])
+		}
+		if m[p] == "" {
 			errors = append(errors, "[Missing] "+v.Path)
-		} else if m[v.Path] != v.Md5 {
+		} else if m[p] != v.Md5 {
 			errors = append(errors, "[Md5-Error] "+v.Path)
 		}
 	}
