@@ -56,7 +56,11 @@ const (
  * j. Retrieve the metadata files from step #f again, check that the new version is gone
  * k. Clean up. Delete the build group G and the hosted repo A. Delete folo record.
  */
-func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, clearCache, dryRun, keepPod bool) {
+func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, clearCache, dryRun, keepPod, sidecar bool) {
+	if sidecar {
+		indyBaseUrl = "http://localhost:8080"
+	}
+
 	//a. Clone dataset repo
 	datasetRepoDir := cloneRepo(datasetRepoUrl)
 	fmt.Printf("Clone SUCCESS, dir: %s\n", datasetRepoDir)
