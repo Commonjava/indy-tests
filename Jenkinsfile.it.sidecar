@@ -31,7 +31,7 @@ pipeline {
           app: "jenkins-${env.JOB_BASE_NAME}"
           indy-pipeline-build-number: "${env.BUILD_NUMBER}"
       spec:
-        initContainers:
+        containers:
         - name: sidecar
           image: quay.io/factory2/indy-sidecar:1.0.0
           imagePullPolicy: Always
@@ -45,7 +45,6 @@ pipeline {
           ports:
             - containerPort: 8080
               protocol: TCP
-        containers:
         - name: jnlp
           image: ${build_image}
           imagePullPolicy: Always
