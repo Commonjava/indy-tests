@@ -38,7 +38,7 @@ pipeline {
           volumeMounts:
             - name: vol-it-sidecar-config
               readOnly: true
-              mountPath: /deployments/config
+              mountPath: /deployment/config
           env:
             - name: JAVA_OPTS
               value: '-Xms2G -Xmx2G -Xss256k'
