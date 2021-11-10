@@ -58,6 +58,7 @@ const (
  */
 func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, clearCache, dryRun, keepPod, sidecar bool) {
 	if sidecar {
+		fmt.Println("Enable sidecar")
 		indyBaseUrl = "http://localhost:8080"
 	}
 

@@ -31,9 +31,9 @@ pipeline {
           app: "jenkins-${env.JOB_BASE_NAME}"
           indy-pipeline-build-number: "${env.BUILD_NUMBER}"
       spec:
-        containers:
+        initContainers:
         - name: sidecar
-          image: quay.io/repository/factory2/indy-sidecar:1.0.0
+          image: quay.io/factory2/indy-sidecar:1.0.0
           imagePullPolicy: Always
           volumeMounts:
             - name: vol-it-sidecar-config
@@ -41,10 +41,11 @@ pipeline {
               mountPath: /deployments/config
           env:
             - name: JAVA_OPTS
-              value: '-Xms3G -Xmx3G -Xss256k'
+              value: '-Xms2G -Xmx2G -Xss256k'
           ports:
             - containerPort: 8080
               protocol: TCP
+        containers:
         - name: jnlp
           image: ${build_image}
           imagePullPolicy: Always
@@ -62,11 +63,11 @@ pipeline {
             value: /opt/it
           resources:
             requests:
-              memory: 4Gi
+              memory: 2Gi
               cpu: 2000m
             limits:
-              memory: 8Gi
-              cpu: 4000m
+              memory: 2Gi
+              cpu: 2000m
           workingDir: "/home/jenkins"
           volumeMounts:
           - name: vol-indy-integration-test
