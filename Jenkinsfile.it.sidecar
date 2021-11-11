@@ -31,6 +31,16 @@ pipeline {
           app: "jenkins-${env.JOB_BASE_NAME}"
           indy-pipeline-build-number: "${env.BUILD_NUMBER}"
       spec:
+        initContainers:
+        - name : sidecar-init
+          image: quay.io/factory2/indy-sidecar-init:latest
+          volumeMounts:
+          - mountPath: /deployments/config
+            readOnly: true
+            name: it-sidecar-config
+            subPath: application.yaml
+          - mountPath : /deployments/preSeedRepo
+            name: archive-volume
         containers:
         - name: sidecar
           image: quay.io/factory2/gateway:latest-stable
@@ -39,6 +49,8 @@ pipeline {
             - name: vol-it-sidecar-config
               readOnly: true
               mountPath: /deployment/config
+            - mountPath : /deployments/preSeedRepo
+              name: archive-volume
           env:
             - name: JAVA_OPTS
               value: '-Xms2G -Xmx2G -Xss256k'
@@ -80,6 +92,8 @@ pipeline {
           - name: vol-indy-integration-test
             persistentVolumeClaim: 
               claimName: indy-integration-test
+          - name: archive-volume
+            emptyDir: {}
       """
     }
   }
