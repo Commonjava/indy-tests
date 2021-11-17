@@ -33,7 +33,7 @@ pipeline {
       spec:
         containers:
         - name: sidecar
-          image: quay.io/factory2/gateway:latest-stable
+          image: quay.io/factory2/gateway:latest
           imagePullPolicy: Always
           volumeMounts:
             - name: vol-it-sidecar-config
