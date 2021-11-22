@@ -57,3 +57,28 @@ func TestDownload(t *testing.T) {
 		})
 	})
 }
+
+/*
+ * We need to start up a local httproxy to run this test. For indy, run "{indy-home}/bin/test-setup.sh -e"
+ * By default the httproxy is disabled. We need to update the conf.d/httproxy.conf as below
+ * [httprox]
+ * enabled=true
+ *
+ * You can test 'https' url by changing fileUrl from 'http://' to 'https://'.
+ * Note: you need to enable the MITM config in the conf.d/httproxy.conf accordingly.
+ *
+ func TestDownloadByProxy(t *testing.T) {
+	Convey("Download by proxy should succeed", t, func() {
+		Convey("File can be download", func() {
+			fileUrl := "http://registry.npmjs.org/npm/-/npm-6.14.5.tgz"
+			fileLoc := "/tmp/npm-6.14.5.tgz"
+			trackingId := "test-build-123"
+			indyProxyUrl := "http://localhost:8081"
+			So(FileOrDirExists(fileLoc), ShouldBeFalse)
+			DownloadFileByProxy(fileUrl, fileLoc, indyProxyUrl, trackingId+TRACKING_SUFFIX, "pass")
+			So(FileOrDirExists(fileLoc), ShouldBeTrue)
+			os.RemoveAll(fileLoc)
+		})
+	})
+}
+*/

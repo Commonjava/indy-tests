@@ -39,11 +39,12 @@ func NewIntegrationTestCmd() *cobra.Command {
 			dryRun, _ := cmd.Flags().GetBool("dryRun")
 			keepPod, _ := cmd.Flags().GetBool("keepPod")
 			sidecar, _ := cmd.Flags().GetBool("sidecar")
+			indyProxyUrl, _ := cmd.Flags().GetString("indyProxyUrl")
 			metaCheckRepo := ""
 			if len(args) >= 5 {
 				metaCheckRepo = args[4]
 			}
-			integrationtest.Run(args[0], args[1], args[2], args[3], metaCheckRepo, clearCache, dryRun, keepPod, sidecar)
+			integrationtest.Run(args[0], args[1], args[2], args[3], metaCheckRepo, clearCache, dryRun, keepPod, sidecar, indyProxyUrl)
 		},
 	}
 
@@ -51,6 +52,7 @@ func NewIntegrationTestCmd() *cobra.Command {
 	exec.Flags().BoolP("dryRun", "d", false, "Print msg for repo creation, down/upload, promote, and clean up, without really doing it.")
 	exec.Flags().BoolP("keepPod", "k", false, "Keep the pod after test to debug.")
 	exec.Flags().BoolP("sidecar", "s", false, "Send requests through sidecar.")
+	exec.Flags().StringP("indyProxyUrl", "p", "", "Indy generic proxy url.")
 	return exec
 }
 

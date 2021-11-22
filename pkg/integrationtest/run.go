@@ -56,7 +56,11 @@ const (
  * j. Retrieve the metadata files from step #f again, check that the new version is gone
  * k. Clean up. Delete the build group G and the hosted repo A. Delete folo record.
  */
-func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, clearCache, dryRun, keepPod, sidecar bool) {
+func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, clearCache, dryRun, keepPod, sidecar bool, indyProxyUrl string) {
+	if indyProxyUrl != "" {
+		fmt.Println("Enable generic proxy: " + indyProxyUrl)
+	}
+
 	if sidecar {
 		fmt.Println("Enable sidecar")
 		indyBaseUrl = "http://localhost:8080"
@@ -89,7 +93,7 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	originalIndy := getOriginalIndyBaseUrl(foloTrackContent.Uploads[0].LocalUrl)
 	buildName := common.GenerateRandomBuildName()
 	prev := t
-	buildSuccess := buildtest.DoRun(originalIndy, "", indyBaseUrl, packageType, buildName, foloTrackContent, additionalRepos, DEFAULT_ROUTINES, clearCache, dryRun)
+	buildSuccess := buildtest.DoRun(originalIndy, indyBaseUrl, indyProxyUrl, packageType, buildName, foloTrackContent, additionalRepos, DEFAULT_ROUTINES, clearCache, dryRun)
 	t = time.Now()
 	fmt.Printf("Create mock group(%s) and download/upload SUCCESS, elapsed(s): %f\n", buildName, t.Sub(prev).Seconds())
 

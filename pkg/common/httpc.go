@@ -17,6 +17,7 @@
 package common
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -238,6 +239,10 @@ type HTTPError struct {
 	StatusCode int
 }
 
+type ProxyConfig struct {
+	ProxyUrl, User, Pass string
+}
+
 func (err HTTPError) Error() string {
 	return err.Message
 }
@@ -256,10 +261,25 @@ func HttpExists(url string) bool {
 	return false
 }
 
+func DownloadFileByProxy(url, storeFileName, indyProxyUrl, user, pass string) bool {
+	fmt.Printf("[%s] Downloading (By Proxy) %s\n", time.Now().Format(DATA_TIME), url)
+	start := time.Now()
+	proxyConfig := ProxyConfig{ProxyUrl: indyProxyUrl, User: user, Pass: pass}
+	if download(url, storeFileName, &proxyConfig) {
+		end := time.Now()
+		diff := end.Sub(start)
+		milliSecs := diff.Milliseconds()
+		size := FileSize(storeFileName)
+		fmt.Printf("[%s] Downloaded %s (%s at %s)\n", time.Now().Format(DATA_TIME), url, ByteCountSI(size), calculateSpeed(size, int64(milliSecs)))
+		return true
+	}
+	return false
+}
+
 func DownloadFile(url, storeFileName string) bool {
 	fmt.Printf("[%s] Downloading %s\n", time.Now().Format(DATA_TIME), url)
 	start := time.Now()
-	if download(url, storeFileName) {
+	if download(url, storeFileName, nil) {
 		end := time.Now()
 		diff := end.Sub(start)
 		milliSecs := diff.Milliseconds()
@@ -277,28 +297,43 @@ func calculateSpeed(size, duration int64) string {
 
 func DownloadUploadFileForCache(url, cacheFileName string) bool {
 	fmt.Printf("[%s] Downloading %s before uploading it. \n", time.Now().Format(DATA_TIME), url)
-	if download(url, cacheFileName) {
+	if download(url, cacheFileName, nil) {
 		fmt.Printf("[%s] Downloaded %s before uploading it. \n", time.Now().Format(DATA_TIME), url)
 		return true
 	}
 	return false
 }
 
-func download(url, storeFileName string) bool {
-	client := &http.Client{}
-	req, err := http.NewRequest(MethodGet, url, nil)
+func download(targetUrl, storeFileName string, proxyConfig *ProxyConfig) bool {
+	var client *http.Client
+	if proxyConfig != nil {
+		pTmp, _ := url.Parse(proxyConfig.ProxyUrl)
+		var proxyUrl *url.URL
+		if proxyConfig.User == "" {
+			proxyUrl, _ = url.Parse(fmt.Sprintf("http://%s", pTmp.Host))
+		} else {
+			proxyUrl, _ = url.Parse(fmt.Sprintf("http://%s:%s@%s", proxyConfig.User, proxyConfig.Pass, pTmp.Host))
+		}
+		tr := &http.Transport{Proxy: http.ProxyURL(proxyUrl), TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+		client = &http.Client{Transport: tr}
+		fmt.Printf("Create http client with proxy %s\n", proxyUrl)
+	} else {
+		client = &http.Client{}
+	}
+
+	req, err := http.NewRequest(MethodGet, targetUrl, nil)
 	if err != nil {
-		fmt.Printf("Can not download file %s, err: %s\n", url, err)
+		fmt.Printf("Can not download file %s, new request err: %s\n", targetUrl, err)
 		return false
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("Can not download file %s, err: %s\n", url, err)
+		fmt.Printf("Can not download file %s, err: %s\n", targetUrl, err)
 		return false
 	}
 
 	if resp.StatusCode >= 400 {
-		fmt.Printf("Can not download file %s because of error response, status: %s, return code: %v\n", url, resp.Status, resp.StatusCode)
+		fmt.Printf("Can not download file %s because of error response, status: %s, return code: %v\n", targetUrl, resp.Status, resp.StatusCode)
 		return false
 	}
 
@@ -313,7 +348,7 @@ func download(url, storeFileName string) bool {
 			splitted := strings.Split(filePath, "=")
 			filePath = splitted[1]
 		} else {
-			filePath = path.Base(url)
+			filePath = path.Base(targetUrl)
 		}
 		filePath = "./" + filePath
 	}

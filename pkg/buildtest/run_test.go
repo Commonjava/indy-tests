@@ -15,3 +15,24 @@ func TestAlterUploadPath(t *testing.T) {
 		So(altered, ShouldEqual, expected)
 	})
 }
+
+func Test_getRepoNameByOriginUrl(t *testing.T) {
+	type args struct {
+		originUrl string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		// TODO: Add test cases.
+		{name: "aTest", args: args{originUrl: "https://nodejs.org/dist/v8.11.4/node-v8.11.4-linux-x64.tar.gz"}, want: "nodejs-org"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getRepoNameByOriginUrl(tt.args.originUrl); got != tt.want {
+				t.Errorf("getRepoNameByOriginUrl() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

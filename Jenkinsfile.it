@@ -98,7 +98,7 @@ pipeline {
       steps {
         sh 'chmod +x ./build/indy-test'
         sh """./build/indy-test integrationtest ${INDY_URL} ${DATASET_REPO_URL} ${BUILD_ID} ${PROMOTE_TARGET} ${META_CHECK_REPO} \
-        --clearCache=${CLEAR_CACHE} --dryRun=${DRY_RUN} --keepPod=${KEEP_POD} """
+        --clearCache=${CLEAR_CACHE} --dryRun=${DRY_RUN} --keepPod=${KEEP_POD} --indyProxyUrl=${INDY_PROXY_URL}"""
       }
     }
 

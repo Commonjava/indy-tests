@@ -118,21 +118,30 @@ func delAllowed(buildName string) bool {
 }
 
 //Delete hosted repo and content
-func deleteIndyHosted(indyURL, buildType, buildName string) {
-	URL := fmt.Sprintf("%s/api/admin/stores/%s/hosted/%s?deleteContent=true", indyURL, buildType, buildName)
-	fmt.Printf("Start deleting hosted repo %s\n", buildName)
+func deleteIndyHosted(indyURL, buildType, repoName string) {
+	URL := fmt.Sprintf("%s/api/admin/stores/%s/hosted/%s?deleteContent=true", indyURL, buildType, repoName)
+	fmt.Printf("Start deleting hosted repo %s\n", repoName)
 	result := delRequest(URL)
 	if result {
-		fmt.Printf("Hosted repo %s deleted successfully\n", buildName)
+		fmt.Printf("Hosted repo %s deleted successfully\n", repoName)
 	}
 }
 
-func deleteIndyGroup(indyURL, buildType, buildName string) {
-	URL := fmt.Sprintf("%s/api/admin/stores/%s/group/%s", indyURL, buildType, buildName)
-	fmt.Printf("Start deleting group repo %s\n", buildName)
+func deleteIndyRemote(indyURL, buildType, repoName string) {
+	URL := fmt.Sprintf("%s/api/admin/stores/%s/remote/%s?deleteContent=true", indyURL, buildType, repoName)
+	fmt.Printf("Start deleting remote repo %s\n", repoName)
 	result := delRequest(URL)
 	if result {
-		fmt.Printf("Group repo %s deleted successfully\n", buildName)
+		fmt.Printf("Remote repo %s deleted successfully\n", repoName)
+	}
+}
+
+func deleteIndyGroup(indyURL, buildType, repoName string) {
+	URL := fmt.Sprintf("%s/api/admin/stores/%s/group/%s", indyURL, buildType, repoName)
+	fmt.Printf("Start deleting group repo %s\n", repoName)
+	result := delRequest(URL)
+	if result {
+		fmt.Printf("Group repo %s deleted successfully\n", repoName)
 	}
 }
 

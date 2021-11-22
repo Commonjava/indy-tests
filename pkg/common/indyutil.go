@@ -9,6 +9,10 @@ import (
 	"strings"
 )
 
+const (
+	TRACKING_SUFFIX = "+tracking"
+)
+
 func ValidateTargetIndyOrExit(targetIndy string) (string, bool) {
 	targetIndyHost, validated := ValidateTargetIndy(targetIndy)
 	if !validated {
