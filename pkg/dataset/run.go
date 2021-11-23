@@ -241,6 +241,9 @@ func getMetadataPaths(alignLog string) []string {
 	for _, match := range re.FindAllString(alignLog, -1) {
 		i := strings.Index(match, "{")
 		gavs := match[i+1 : len(match)-1]
+		if gavs == "" {
+			continue
+		}
 		gavArray := strings.Split(gavs, ",")
 		for _, gav := range gavArray {
 			s := strings.Split(gav, ":")
