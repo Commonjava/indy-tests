@@ -76,8 +76,7 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	json.Unmarshal(common.ReadByteFromFile(infoFileLoc), &info)
 
 	//Load the additional-repos.json
-	additionalReposFileLoc := path.Join(datasetRepoDir, buildId, dataset.ADDITIONAL_REPOS)
-	additionalRepos := getAdditionalRepos(additionalReposFileLoc)
+	additionalRepos := getAdditionalRepos(datasetRepoDir, buildId)
 
 	start := time.Now()
 
@@ -218,7 +217,11 @@ func checkFoloEntries(title string, alterPath func(string, string) string, build
 	return errors
 }
 
-func getAdditionalRepos(fileLoc string) []string {
+func getAdditionalRepos(datasetRepoDir, buildId string) []string {
+	fileLoc := path.Join(datasetRepoDir, buildId, dataset.ADDITIONAL_REPOS)
+	if !common.FileOrDirExists(fileLoc) {
+		fileLoc = path.Join(datasetRepoDir, strings.Split(buildId, "/")[0], dataset.ADDITIONAL_REPOS) // Check group location
+	}
 	if common.FileOrDirExists(fileLoc) {
 		byteValue := common.ReadByteFromFile(fileLoc)
 		var arr []string
