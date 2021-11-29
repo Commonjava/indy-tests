@@ -56,7 +56,7 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, buildType, newBuildName strin
 		}
 		success := false
 		if strings.HasPrefix(targetArtiURL, PROXY_) {
-			success = common.DownloadFileByProxy(targetArtiURL[len(PROXY_):], fileLoc, indyProxyUrl, trackingId+common.TRACKING_SUFFIX, "pass")
+			success = common.DownloadFileByProxy(targetArtiURL[len(PROXY_):], fileLoc, indyProxyUrl, newBuildName+common.TRACKING_SUFFIX, "pass")
 		} else {
 			success = common.DownloadFile(targetArtiURL, fileLoc)
 		}
@@ -137,9 +137,9 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, buildType, newBuildName strin
 			targIndy = "http://" + targIndy
 		}
 		if common.SealFoloRecord(targIndy, newBuildName) {
-			fmt.Printf("Folo record sealing succeeded for %s", newBuildName)
+			fmt.Printf("Folo record sealing succeeded for %s\n", newBuildName)
 		} else {
-			fmt.Printf("Warning: folo record sealing failed for %s", newBuildName)
+			fmt.Printf("Warning: folo record sealing failed for %s\n", newBuildName)
 		}
 	}
 
