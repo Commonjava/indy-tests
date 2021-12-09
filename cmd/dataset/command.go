@@ -27,24 +27,26 @@ import (
 func NewDatasetCmd() *cobra.Command {
 
 	exec := &cobra.Command{
-		Use:     "dataset $pncBaseUrl $indyBaseUrl $groupBuildId",
-		Short:   "To generate test dataset from any PNC successful group build",
+		Use:     "dataset $pncBaseUrl $indyBaseUrl $buildId",
+		Short:   "To generate test dataset from any PNC successful group build.",
 		Example: "dataset https://orch-stage.xyz.com http://indy-admin-stage.xyz.com 2836",
 		Run: func(cmd *cobra.Command, args []string) {
 			if !validate(args) {
 				cmd.Help()
 				os.Exit(1)
 			}
-			dataset.Run(args[0], args[1], args[2])
+			groupBuild, _ := cmd.Flags().GetBool("groupBuild")
+			dataset.Run(args[0], args[1], args[2], groupBuild)
 		},
 	}
 
+	exec.Flags().BoolP("groupBuild", "g", false, "Is group build.")
 	return exec
 }
 
 func validate(args []string) bool {
 	if len(args) < 3 {
-		fmt.Printf("there are 3 mandatory arguments: pncBaseUrl, indyBaseUrl, groupBuildId!\n\n")
+		fmt.Printf("there are 3 mandatory arguments: pncBaseUrl, indyBaseUrl, buildId!\n\n")
 		return false
 	}
 	return true

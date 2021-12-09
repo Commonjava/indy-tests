@@ -67,22 +67,18 @@ const (
  *     |-- da.json => same as above
  *     |-- tracking.json => same as above
  */
-func Run(pncBaseUrl, indyBaseUrl, buildId string) {
+func Run(pncBaseUrl, indyBaseUrl, buildId string, isGroupBuild bool) {
 	//Create folder, e.g, 'dataset/2836'
 	dirLoc := path.Join(DATASET_DIR, buildId)
 	err := os.MkdirAll(dirLoc, 0755)
 	common.RePanic(err)
 
-	//Check if this is a group build
-	isGroupBuild := false
-	buildURL := pncBaseUrl + "/pnc-rest/v2/group-builds/" + buildId
-	if common.HttpExists(buildURL) {
-		isGroupBuild = true
-	}
+	buildURL := ""
 
 	//Download group-build.json or build.json
 	var buildJsonFileLoc string
 	if isGroupBuild {
+		buildURL = pncBaseUrl + "/pnc-rest/v2/group-builds/" + buildId
 		buildJsonFileLoc = path.Join(dirLoc, "group-build.json")
 	} else {
 		buildURL = pncBaseUrl + "/pnc-rest/v2/builds/" + buildId
@@ -121,9 +117,26 @@ func Run(pncBaseUrl, indyBaseUrl, buildId string) {
 		os.MkdirAll(buildsDir, 0755)
 
 		//Parse dependency-graph.json to generate data for each bc
-		parseDependency(pncBaseUrl, indyBaseUrl, buildsDir, dependencyGraphFileLoc)
+		result := parseDependency(pncBaseUrl, indyBaseUrl, buildsDir, dependencyGraphFileLoc)
+
+		// Iterate through builds and generate files
+		for k := range result.Vertices {
+			buildId := k
+			buildDir := path.Join(buildsDir, buildId)
+			generateFile(pncBaseUrl, indyBaseUrl, buildDir, buildId)
+		}
+
+		buildQueueFileLoc := path.Join(dirLoc, "build-queue.yaml")
+		generateBuildQueueFile(buildQueueFileLoc, result.Edges)
 	} else {
 		generateFile(pncBaseUrl, indyBaseUrl, dirLoc, buildId)
+	}
+}
+
+func generateBuildQueueFile(fileLoc string, edges []Edge) {
+	if !common.FileOrDirExists(fileLoc) {
+		err := ioutil.WriteFile(fileLoc, []byte(getBuildQueueAsYaml(edges)), 0644)
+		common.RePanic(err)
 	}
 }
 
@@ -190,25 +203,13 @@ func parseBuildJson(fileLoc string) (bool, string) {
 	return temporaryBuild, buildType
 }
 
-func parseDependency(pncBaseUrl, indyBaseUrl, buildsDir, fileLoc string) {
+func parseDependency(pncBaseUrl, indyBaseUrl, buildsDir, fileLoc string) DepGraph {
 	// Read jsonFile
 	byteValue := common.ReadByteFromFile(fileLoc)
 
-	// Parse it
-	var result map[string]interface{}
+	var result DepGraph
 	json.Unmarshal([]byte(byteValue), &result)
-
-	// Iterate through builds and generate files
-	vertices := result["vertices"]
-	v := reflect.ValueOf(vertices)
-	if v.Kind() == reflect.Map {
-		for _, key := range v.MapKeys() {
-			//val := v.MapIndex(key)
-			buildId := key.String()
-			buildDir := path.Join(buildsDir, buildId)
-			generateFile(pncBaseUrl, indyBaseUrl, buildDir, buildId)
-		}
-	}
+	return result
 }
 
 func generateFile(pncBaseUrl, indyBaseUrl, buildDir, buildId string) {
