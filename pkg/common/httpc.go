@@ -205,7 +205,7 @@ func HTTPRequest(url, method string, auth Authenticate, needResult bool, dataPay
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("Client failed, Error: %s, Status: %s\n", err, resp.Status)
+		fmt.Printf("Client failed, %s\n", err)
 		return respText, StatusUnknown, false
 	}
 
