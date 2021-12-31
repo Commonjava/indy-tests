@@ -17,18 +17,18 @@ const (
 	PROXY_           = "proxy-"
 )
 
-func Run(originalIndy, foloId, replacement, targetIndy, buildType string, processNum int) {
+func Run(originalIndy, foloId, replacement, targetIndy, packageType string, processNum int) {
 	origIndy := originalIndy
 	if !strings.HasPrefix(origIndy, "http://") {
 		origIndy = "http://" + origIndy
 	}
 	foloTrackContent := common.GetFoloRecord(origIndy, foloId)
 	newBuildName := common.GenerateRandomBuildName()
-	DoRun(originalIndy, targetIndy, "", buildType, newBuildName, foloTrackContent, nil, processNum, false, false)
+	DoRun(originalIndy, targetIndy, "", packageType, newBuildName, foloTrackContent, nil, processNum, false, false)
 }
 
 // Create the repo structure and do the download/upload
-func DoRun(originalIndy, targetIndy, indyProxyUrl, buildType, newBuildName string, foloTrackContent common.TrackedContent,
+func DoRun(originalIndy, targetIndy, indyProxyUrl, packageType, newBuildName string, foloTrackContent common.TrackedContent,
 	additionalRepos []string,
 	processNum int, clearCache, dryRun bool) bool {
 
@@ -36,7 +36,7 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, buildType, newBuildName strin
 	targetIndyHost, _ := common.ValidateTargetIndyOrExit(targetIndy)
 
 	// Prepare the indy repos for the whole testing
-	buildMeta := decideMeta(buildType)
+	buildMeta := decideMeta(packageType)
 	if !prepareIndyRepos("http://"+targetIndyHost, newBuildName, *buildMeta, additionalRepos, dryRun) {
 		os.Exit(1)
 	}
@@ -45,7 +45,7 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, buildType, newBuildName strin
 	downloadDir, uploadDir := prepareDownUploadDirectories(trackingId, clearCache)
 
 	proxyEnabled := (indyProxyUrl != "")
-	downloads := prepareDownloadEntriesByFolo(targetIndy, newBuildName, foloTrackContent, additionalRepos, proxyEnabled)
+	downloads := prepareDownloadEntriesByFolo(targetIndy, newBuildName, packageType, foloTrackContent, additionalRepos, proxyEnabled)
 	defer cleanGenericProxyReposIfAny(targetIndy, newBuildName, foloTrackContent, proxyEnabled)
 
 	downloadFunc := func(md5str, originalArtiURL, targetArtiURL string) bool {
@@ -172,7 +172,8 @@ func getRepoNameByOriginUrl(originUrl string) string {
 
 // For downloads entries, we will get the paths and inject them to the final url of target indy
 // as they should be directly download from target indy.
-func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId string, foloRecord common.TrackedContent, additionalRepos []string, proxyEnabled bool) map[string][]string {
+func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId, packageType string,
+	foloRecord common.TrackedContent, additionalRepos []string, proxyEnabled bool) map[string][]string {
 	targetIndy := normIndyURL(targetIndyURL)
 	result := make(map[string][]string)
 	for _, down := range foloRecord.Downloads {
@@ -187,10 +188,12 @@ func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId string, foloRecord c
 				downUrl = fmt.Sprintf("%s%s", targetIndy, p)
 			}
 		} else {
-			if common.Contains(additionalRepos, down.StoreKey) {
+			// To explain the 'HasPrefix': NPM build can have downloads from maven repos (or vice verse). We use the original repo
+			// if the storeKey is not compliant with packageType
+			if common.Contains(additionalRepos, down.StoreKey) || !strings.HasPrefix(down.StoreKey, packageType) {
 				p = path.Join("api/folo/track", newBuildId, repoPath, down.Path)
 			} else {
-				p = path.Join("api/folo/track", newBuildId, "maven/group", newBuildId, down.Path)
+				p = path.Join("api/folo/track", newBuildId, packageType, "group", newBuildId, down.Path)
 			}
 			downUrl = fmt.Sprintf("%s%s", targetIndy, p)
 		}
