@@ -44,7 +44,7 @@ func Test_getMetadataPaths(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getMetadataPaths(tt.args.alignLog); !reflect.DeepEqual(got, tt.want) {
+			if got := getMavenMetadataPaths(tt.args.alignLog); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getMetadataPaths() = %v, want %v", got, tt.want)
 			}
 		})

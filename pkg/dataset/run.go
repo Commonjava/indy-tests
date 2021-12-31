@@ -43,6 +43,9 @@ const (
 	TRACKING_JSON    = "tracking.json"
 	INFO_JSON        = "info.json"
 	ADDITIONAL_REPOS = "additional-repos.json"
+
+	BUILD_MVN = "MVN"
+	BUILD_NPM = "NPM"
 )
 
 /**
@@ -74,7 +77,7 @@ func Run(pncBaseUrl, indyBaseUrl, buildId string, isGroupBuild bool) {
 	common.RePanic(err)
 
 	buildURL := ""
-
+	buildType := ""
 	//Download group-build.json or build.json
 	var buildJsonFileLoc string
 	if isGroupBuild {
@@ -92,11 +95,9 @@ func Run(pncBaseUrl, indyBaseUrl, buildId string, isGroupBuild bool) {
 	//Create info.json
 	infoFileLoc := path.Join(dirLoc, INFO_JSON)
 	if !common.FileOrDirExists(infoFileLoc) {
-		success := createInfoFile(pncBaseUrl, buildId, buildJsonFileLoc, infoFileLoc)
-		if !success {
-			fmt.Println("Create info.json failed.")
-			return
-		}
+		buildType = createInfoFile(pncBaseUrl, buildId, buildJsonFileLoc, infoFileLoc)
+	} else {
+		_, buildType = parseBuildJson(buildJsonFileLoc)
 	}
 
 	if isGroupBuild {
@@ -123,13 +124,13 @@ func Run(pncBaseUrl, indyBaseUrl, buildId string, isGroupBuild bool) {
 		for k := range result.Vertices {
 			buildId := k
 			buildDir := path.Join(buildsDir, buildId)
-			generateFile(pncBaseUrl, indyBaseUrl, buildDir, buildId)
+			generateFiles(pncBaseUrl, indyBaseUrl, buildDir, buildId, buildType)
 		}
 
 		buildQueueFileLoc := path.Join(dirLoc, "build-queue.yaml")
 		generateBuildQueueFile(buildQueueFileLoc, result.Edges)
 	} else {
-		generateFile(pncBaseUrl, indyBaseUrl, dirLoc, buildId)
+		generateFiles(pncBaseUrl, indyBaseUrl, dirLoc, buildId, buildType)
 	}
 }
 
@@ -160,17 +161,14 @@ func formatJsonFile(fileLoc string) {
 	common.RePanic(err)
 }
 
-func createInfoFile(pncBaseUrl, buildId string, buildJsonLoc, fileLoc string) bool {
+func createInfoFile(pncBaseUrl, buildId string, buildJsonLoc, fileLoc string) string {
 	tempB, bType := parseBuildJson(buildJsonLoc)
 	info := &Info{PncBaseUrl: pncBaseUrl, BuildId: buildId, TemporaryBuild: tempB, BuildType: bType}
 	fmt.Printf("Get %s, %s\n", info.PncBaseUrl, info.BuildId)
 	b, _ := json.MarshalIndent(info, "", " ")
 	err := ioutil.WriteFile(fileLoc, b, 0644)
-	if err != nil {
-		fmt.Printf("Warning: cannot create file due to io error! %s\n", err.Error())
-		return false
-	}
-	return true
+	common.RePanic(err)
+	return bType
 }
 
 func parseBuildJson(fileLoc string) (bool, string) {
@@ -212,29 +210,44 @@ func parseDependency(pncBaseUrl, indyBaseUrl, buildsDir, fileLoc string) DepGrap
 	return result
 }
 
-func generateFile(pncBaseUrl, indyBaseUrl, buildDir, buildId string) {
+func generateFiles(pncBaseUrl, indyBaseUrl, buildDir, buildId, buildType string) {
 	alignLogFile := path.Join(buildDir, "align.log")
 	daFile := path.Join(buildDir, DA_JSON)
 	trackingFile := path.Join(buildDir, TRACKING_JSON)
-
 	os.MkdirAll(buildDir, 0755)
+	alignLog := ""
 	if !common.FileOrDirExists(alignLogFile) {
-		alignLog := common.GetAlignLog(pncBaseUrl, buildId)
+		alignLog = common.GetAlignLog(pncBaseUrl, buildId)
 		err := ioutil.WriteFile(alignLogFile, []byte(alignLog), 0644)
 		common.RePanic(err)
-		paths := getMetadataPaths(alignLog)
+	}
+	if !common.FileOrDirExists(daFile) {
+		if alignLog == "" {
+			b, _ := ioutil.ReadFile(alignLogFile)
+			alignLog = string(b)
+		}
+		paths := getMetadataPaths(alignLog, buildType)
 		pathsJson, _ := json.MarshalIndent(paths, "", " ")
-		err = ioutil.WriteFile(daFile, pathsJson, 0644)
+		err := ioutil.WriteFile(daFile, pathsJson, 0644)
 		common.RePanic(err)
 	}
-
 	if !common.FileOrDirExists(trackingFile) {
 		url := indyBaseUrl + "/api/folo/admin/build-" + buildId + "/report"
 		common.DownloadFile(url, trackingFile)
 	}
 }
 
-func getMetadataPaths(alignLog string) []string {
+func getMetadataPaths(alignLog, buildType string) []string {
+	if buildType == BUILD_MVN {
+		return getMavenMetadataPaths(alignLog)
+	} else if buildType == BUILD_NPM {
+		return getNPMMetadataPaths(alignLog)
+	} else {
+		panic("Invalid buildType: " + buildType)
+	}
+}
+
+func getMavenMetadataPaths(alignLog string) []string {
 	// extract the gav list from alignment log
 	// (?s) means single-line (hence the s) or DOTALL mode - it takes the whole alignlog as one string
 	var re = regexp.MustCompile(`(?s)REST Client returned.*?\}`)
@@ -256,6 +269,32 @@ func getMetadataPaths(alignLog string) []string {
 			paths = append(paths, p)
 		}
 		fmt.Println("Get metadata paths: ", len(gavArray))
+	}
+	fmt.Println("Get metadata paths (Total): ", len(paths))
+	return paths
+}
+
+func getNPMMetadataPaths(alignLog string) []string {
+	var re = regexp.MustCompile(`(?s)Got project manipulator result data.*?\}\"`)
+	var paths []string
+	for _, match := range re.FindAllString(alignLog, -1) {
+		fmt.Println(">>> " + match)
+		i := strings.Index(match, "{")
+		jtems := match[i+1 : len(match)-2]
+		if jtems == "" {
+			continue
+		}
+		arr := strings.Split(jtems, ",")
+		for _, jtem := range arr {
+			s := strings.Split(jtem, ":")
+			k := strings.Trim(strings.TrimSpace(s[0]), "\"")
+			v := strings.Trim(strings.TrimSpace(s[1]), "\"")
+			if k == "name" {
+				fmt.Println("Get metadata path: ", v)
+				paths = append(paths, v)
+				break
+			}
+		}
 	}
 	fmt.Println("Get metadata paths (Total): ", len(paths))
 	return paths
