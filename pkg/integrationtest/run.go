@@ -233,8 +233,11 @@ func getAdditionalRepos(datasetRepoDir, buildId string) []string {
 
 func getInfoFileLoc(datasetRepoDir, buildId string) string {
 	// Support group build dataset. E.g., in case of "11237/builds/###", info.json is in dir "11237/".
-	toks := strings.Split(buildId, "/")
-	return path.Join(datasetRepoDir, toks[0], dataset.INFO_JSON)
+	if strings.Contains(buildId, "builds") {
+		toks := strings.Split(buildId, "/")
+		return path.Join(datasetRepoDir, toks[0], dataset.INFO_JSON)
+	}
+	return path.Join(datasetRepoDir, buildId, dataset.INFO_JSON)
 }
 
 func getPromotionSrcTargetStores(packageType, buildName, targetStoreName string, foloTrackContent common.TrackedContent) (string, string) {
