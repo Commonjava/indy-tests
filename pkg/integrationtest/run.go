@@ -140,6 +140,7 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	fmt.Printf("Metadata validate (after promotion) SUCCESS\n")
 
 	//i. Rollback the promotion
+	fmt.Printf("Rollback:\n%s\n", resp)
 	promotetest.Rollback(indyBaseUrl, resp, dryRun)
 
 	//h. Retrieve the metadata files again, check the new version is GONE

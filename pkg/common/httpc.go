@@ -188,7 +188,7 @@ func HTTPRequest(url, method string, auth Authenticate, needResult bool, dataPay
 	respText := ""
 	req, err := http.NewRequest(method, url, dataPayload)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("New request failed, %s\n", err)
 		return respText, StatusUnknown, false
 	}
 	if len(headers) > 0 {
@@ -199,13 +199,13 @@ func HTTPRequest(url, method string, auth Authenticate, needResult bool, dataPay
 	if auth != nil {
 		err := auth(req)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("Auth failed, %s\n", err)
 			return "", StatusUnknown, false
 		}
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("Client failed, %s\n", err)
 		return respText, StatusUnknown, false
 	}
 
@@ -216,13 +216,10 @@ func HTTPRequest(url, method string, auth Authenticate, needResult bool, dataPay
 
 	if needResult {
 		content, err := ioutil.ReadAll(resp.Body)
-
 		if err != nil {
 			panic(err)
 		}
-
 		resp.Body.Close()
-
 		return string(content), resp.StatusCode, true
 	}
 

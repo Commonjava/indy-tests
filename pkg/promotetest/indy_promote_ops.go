@@ -102,13 +102,13 @@ func Rollback(indyURL, promoteResult string, dryRun bool) (string, int, bool) {
 		return "", 200, true
 	}
 
-	fmt.Printf("Start rollback request:\n %s\n\n", URL)
+	fmt.Printf("Start rollback request: %s\n", URL)
 	respText, code, result := common.HTTPRequest(URL, common.MethodPost, nil, true, strings.NewReader(promoteResult), nil, "", false)
 
 	if result {
-		fmt.Printf("Rollback Done. Result is:\n %s\n\n", respText)
+		fmt.Printf("Rollback Done. code:%d, respText:\n%s\n", code, respText)
 	} else {
-		fmt.Printf("Rollback Error. Result is:\n %s\n\n", respText)
+		fmt.Printf("Rollback Error. code:%d, respText:\n%s\n", code, respText)
 	}
 
 	return respText, code, result
