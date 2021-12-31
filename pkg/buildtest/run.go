@@ -218,10 +218,10 @@ func prepareUploadEntriesByFolo(originalIndyURL, targetIndyURL, newBuildId strin
 func createUploadUrls(originalIndy, targetIndy, newBuildId string, up common.TrackedContentEntry) (string, string) {
 	storePath := common.StoreKeyToPath(up.StoreKey) // original store, e.g, maven/hosted/build-1234
 	uploadPath := path.Join("api/content", storePath, up.Path)
-	orgiUpUrl := fmt.Sprintf("%s%s", originalIndy, uploadPath)                                 // original url to retrieve artifact
-	alteredUploadPath := common.AlterUploadPath(up.Path, newBuildId[len(common.BUILD_TEST_):]) // replace version number
-	toks := strings.Split(storePath, "/")                                                      // get package/type, e.g., maven/hosted
-	targetStorePath := path.Join(toks[0], toks[1], newBuildId, alteredUploadPath)              // e.g, maven/hosted/build-913413/org/...
+	orgiUpUrl := fmt.Sprintf("%s%s", originalIndy, uploadPath)                                              // original url to retrieve artifact
+	alteredUploadPath := common.AlterUploadPath(up.Path, up.StoreKey, newBuildId[len(common.BUILD_TEST_):]) // replace version number
+	toks := strings.Split(storePath, "/")                                                                   // get package/type, e.g., maven/hosted
+	targetStorePath := path.Join(toks[0], toks[1], newBuildId, alteredUploadPath)                           // e.g, maven/hosted/build-913413/org/...
 	targUpUrl := fmt.Sprintf("%sapi/folo/track/%s/%s", targetIndy, newBuildId, targetStorePath)
 	return orgiUpUrl, targUpUrl
 }

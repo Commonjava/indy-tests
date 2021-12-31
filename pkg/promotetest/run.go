@@ -32,14 +32,14 @@ func DoRun(indyBaseUrl, foloTrackId, sourceStore, targetStore, newVersionNum str
 	}
 
 	for _, up := range foloTrackContent.Uploads {
-		if common.IsMetadata(up.Path) {
+		if common.IsMetadata(up.Path, up.StoreKey) {
 			continue // ignore matedata
 		}
 		if newVersionNum == "" {
 			paths = append(paths, up.Path)
 		} else {
 			// replace version with newVersionNum, e.g, xxx-redhat-### to xxx-redhat-<newVersion>
-			altered := common.AlterUploadPath(up.Path, newVersionNum)
+			altered := common.AlterUploadPath(up.Path, up.StoreKey, newVersionNum)
 			paths = append(paths, altered)
 		}
 	}

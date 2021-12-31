@@ -182,7 +182,7 @@ func verifyFoloRecord(indyBaseUrl, buildName string, originalTrackContent common
 	return true
 }
 
-func checkFoloEntries(title string, alterPath func(string, string) string, buildName string,
+func checkFoloEntries(title string, alterPath func(string, string, string) string, buildName string,
 	entries, originalEntries []common.TrackedContentEntry) []string {
 
 	logger.Infof("Verify folo records - %s", title)
@@ -196,7 +196,7 @@ func checkFoloEntries(title string, alterPath func(string, string) string, build
 	for _, v := range originalEntries {
 		p := v.Path
 		if alterPath != nil {
-			p = alterPath(v.Path, buildName[len(common.BUILD_TEST_):])
+			p = alterPath(v.Path, v.StoreKey, buildName[len(common.BUILD_TEST_):])
 		}
 		// Not check metadata. e.g, when downloading a metadata through a group, folo will ingore it.
 		if common.IsRegularFile(p) {

@@ -36,6 +36,7 @@ const (
 )
 
 var (
+	versionTgzRegexp  = regexp.MustCompile(`(-([0-9]+))?\.tgz$`)
 	versionRegexp     = regexp.MustCompile(`redhat-([0-9]+)`)
 	regularFileRegexp = regexp.MustCompile(`(\.(gz|tgz|jar)|pom.xml)$`)
 )
@@ -46,7 +47,12 @@ func RePanic(e error) {
 	}
 }
 
-func AlterUploadPath(rawPath, newReleaseNumber string) string {
+func AlterUploadPath(rawPath, storeKey, newReleaseNumber string) string {
+	if strings.HasPrefix(storeKey, "npm") {
+		// Not sure whether it covers all cases.
+		// npm path is like "/@redhat/opossum/-/opossum-6.2.1.tgz", replace to sth like '/@redhat/opossum/-/opossum-6.2.1-94465.tgz'
+		return versionTgzRegexp.ReplaceAllString(rawPath, "-"+newReleaseNumber+".tgz")
+	}
 	return versionRegexp.ReplaceAllString(rawPath, REDHAT_+newReleaseNumber) // replace with new rel number
 }
 
@@ -70,7 +76,10 @@ func (e *MultiError) Append(err string) {
 	e.errors = append(e.errors, err)
 }
 
-func IsMetadata(path string) bool {
+func IsMetadata(path, storeKey string) bool {
+	if strings.HasPrefix(storeKey, "npm") {
+		return !strings.HasSuffix(path, ".tgz") // we consider files not ending with .tgz as npm metadata
+	}
 	return strings.Index(path, MAVEN_METADATA_XML) > 0
 }
 
