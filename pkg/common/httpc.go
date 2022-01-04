@@ -206,8 +206,10 @@ func HTTPRequest(url, method string, auth Authenticate, needResult bool, dataPay
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Printf("Client failed, %s\n", err)
-		return respText, StatusUnknown, false
+		panic(err)
+		//return respText, StatusUnknown, false
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		fmt.Printf("%s request not success for %s, status: %s, return code: %v\n", method, url, resp.Status, resp.StatusCode)
@@ -219,7 +221,6 @@ func HTTPRequest(url, method string, auth Authenticate, needResult bool, dataPay
 		if err != nil {
 			panic(err)
 		}
-		resp.Body.Close()
 		return string(content), resp.StatusCode, true
 	}
 
