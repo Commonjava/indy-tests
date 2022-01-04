@@ -208,8 +208,7 @@ func HTTPRequest(url, method string, auth Authenticate, needResult bool, dataPay
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Printf("Client failed, %s\n", err)
-		panic(err)
-		//return respText, StatusUnknown, false
+		return respText, StatusUnknown, false
 	}
 	defer resp.Body.Close()
 
