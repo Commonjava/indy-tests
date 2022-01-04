@@ -191,6 +191,8 @@ func HTTPRequest(url, method string, auth Authenticate, needResult bool, dataPay
 		fmt.Printf("New request failed, %s\n", err)
 		return respText, StatusUnknown, false
 	}
+	req.Close = true // prevents the connection from being re-used
+
 	if len(headers) > 0 {
 		for key, val := range headers {
 			req.Header.Add(key, val)
