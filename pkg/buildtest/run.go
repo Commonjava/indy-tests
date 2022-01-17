@@ -184,6 +184,9 @@ func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId, packageType string,
 			if proxyEnabled {
 				downUrl = fmt.Sprintf("%s%s", PROXY_, down.OriginUrl)
 			} else {
+				// Generic remote repo may not be available when we replay the build. PNC has promoted the files to "h-" repo,
+				// so we replace "generic-http/remote/r-xxxx" to "generic-http:hosted:h-xxxx"
+				repoPath = strings.Replace(repoPath, "generic-http/remote/r-", "generic-http/hosted/h-", 1)
 				p = path.Join("api/content", repoPath, down.Path)
 				downUrl = fmt.Sprintf("%s%s", targetIndy, p)
 			}
