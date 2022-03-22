@@ -113,8 +113,8 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	exists := true
 	passed, e := retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, !exists)
 	if !passed {
-		logger.Infof("Metadata check failed (before). Errors: %s", e.Error())
-		return
+		logger.Infof("Metadata validate failed (before). Errors: %s", e.Error())
+		panic("Metadata validate failed")
 	}
 	fmt.Printf("Metadata validate (before) SUCCESS\n")
 
@@ -124,7 +124,7 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	resp, _, success := promotetest.DoRun(indyBaseUrl, foloTrackId, sourceStore, targetStore, newVersionNum, foloTrackContent, dryRun)
 	if !success {
 		fmt.Printf("Promote failed, %s\n", resp)
-		return
+		panic("Promote failed")
 	}
 
 	//h. Retrieve the metadata files again, check the new version
@@ -134,8 +134,8 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	metaFilesLoc = path.Join(TMP_METADATA_DIR, "after-promote")
 	passed, e = retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, exists)
 	if !passed {
-		logger.Infof("Metadata check failed (after promotion). Errors: %s", e.Error())
-		return
+		logger.Infof("Metadata validate failed (after promotion). Errors: %s", e.Error())
+		panic("Metadata validate failed")
 	}
 	fmt.Printf("Metadata validate (after promotion) SUCCESS\n")
 
@@ -150,8 +150,8 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	metaFilesLoc = path.Join(TMP_METADATA_DIR, "rollback")
 	passed, e = retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, !exists)
 	if !passed {
-		logger.Infof("Metadata check failed (rollback). Errors: %s", e.Error())
-		return
+		logger.Infof("Metadata validate failed (rollback). Errors: %s", e.Error())
+		panic("Metadata validate failed")
 	}
 	fmt.Printf("Metadata validate (rollback) SUCCESS\n")
 
