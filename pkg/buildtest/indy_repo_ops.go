@@ -18,6 +18,7 @@ const (
 	TYPE_NPM               = "npm"
 	MISSING_CONTENT_PATH   = "org/missing/1.0/missing-1.0.pom"
 	ACCESSIBLE_REMOTE_PATH = "org/apache/apache"
+	ABC                    = "xyz"
 )
 
 type BuildMetadata struct {

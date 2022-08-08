@@ -2,6 +2,7 @@ package buildtest
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"text/template"
 )
@@ -22,6 +23,7 @@ type IndyGroupVars struct {
 
 // IndyGroupTemplate ...
 func IndyGroupTemplate(indyGroupVars *IndyGroupVars) string {
+	fmt.Print("Just test")
 	groupTemplate := `{
   "type" : "group",
   "key" : "{{.Type}}:group:{{.Name}}",
