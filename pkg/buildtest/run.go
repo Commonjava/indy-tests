@@ -7,6 +7,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/commonjava/indy-tests/pkg/promotetest"
+
 	common "github.com/commonjava/indy-tests/pkg/common"
 )
 
@@ -14,6 +16,7 @@ const (
 	TMP_DOWNLOAD_DIR = "/tmp/download"
 	TMP_UPLOAD_DIR   = "/tmp/upload"
 	PROXY_           = "proxy-"
+	//migrateTargetIndyHost = "indy-gateway-indy--test.apps.gpc.ocp-hub.prod.psi.redhat.com"
 )
 
 func Run(originalIndy, foloId, replacement, targetIndy, packageType string, processNum int) {
@@ -23,11 +26,11 @@ func Run(originalIndy, foloId, replacement, targetIndy, packageType string, proc
 	}
 	foloTrackContent := common.GetFoloRecord(origIndy, foloId)
 	newBuildName := common.GenerateRandomBuildName()
-	DoRun(originalIndy, targetIndy, "", packageType, newBuildName, foloTrackContent, nil, processNum, false, false)
+	DoRun(originalIndy, targetIndy, "", "", packageType, newBuildName, foloTrackContent, nil, processNum, false, false)
 }
 
 // Create the repo structure and do the download/upload
-func DoRun(originalIndy, targetIndy, indyProxyUrl, packageType, newBuildName string, foloTrackContent common.TrackedContent,
+func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageType, newBuildName string, foloTrackContent common.TrackedContent,
 	additionalRepos []string,
 	processNum int, clearCache, dryRun bool) bool {
 
@@ -38,6 +41,13 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, packageType, newBuildName str
 	buildMeta := decideMeta(packageType)
 	if !prepareIndyRepos("http://"+targetIndyHost, newBuildName, *buildMeta, additionalRepos, dryRun) {
 		os.Exit(1)
+	}
+
+	migrateEnabled := (migrateTargetIndy != "")
+	if migrateEnabled {
+		migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
+		fmt.Printf("Migrate to host %s", migrateTargetIndyHost)
+		prepareIndyRepos("http://"+migrateTargetIndyHost, newBuildName, *buildMeta, additionalRepos, dryRun)
 	}
 
 	trackingId := foloTrackContent.TrackingKey.Id
@@ -64,12 +74,57 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, packageType, newBuildName str
 		}
 		return success
 	}
+
+	migrateFunc := func(md5str, originalArtiURL, targetArtiURL string, migrateTargetArtiURL string) bool {
+		fileLoc := path.Join(downloadDir, path.Base(targetArtiURL))
+		if dryRun {
+			fmt.Printf("Dry run download, url: %s\n", targetArtiURL)
+			return true
+		}
+		success := false
+		success, _ = common.DownloadFile(targetArtiURL, fileLoc)
+		if success {
+			common.Md5Check(fileLoc, md5str)
+			if dryRun {
+				fmt.Printf("Dry run upload, url: %s\n", migrateTargetArtiURL)
+				return true
+			}
+			common.UploadFile(migrateTargetArtiURL, fileLoc)
+		}
+		return success
+	}
+
 	broken := false
 	if len(downloads) > 0 {
 		fmt.Println("Start handling downloads artifacts.")
 		fmt.Printf("==========================================\n\n")
-		if processNum > 1 {
+		if processNum > 1 && !migrateEnabled {
 			broken = !common.ConcurrentRun(processNum, downloads, downloadFunc)
+		} else if migrateEnabled {
+			migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
+			migrateUploads := prepareDownloadEntriesByFolo(migrateTargetIndyHost, newBuildName, packageType, foloTrackContent, additionalRepos, proxyEnabled)
+			paths := []string{}
+			rhpaths := []string{}
+			for i, down := range downloads {
+				fmt.Print(i)
+				broken = !migrateFunc(down[0], down[1], down[2], migrateUploads[i][2])
+				if broken {
+					break
+				} else {
+					if strings.Contains(i, "redhat"){
+						rhpaths = append(rhpaths, i)
+					} else {
+						paths = append(paths, i)
+					}
+				}
+			}
+			targetStore := packageType+":hosted:shared-imports"
+			rhTargetStore := packageType+":hosted:pnc-builds"
+			sourceStore := packageType+":hosted:"+newBuildName
+			promotetest.MigratePromote("http://"+migrateTargetIndyHost, newBuildName, sourceStore, targetStore, paths, false)
+			if rhpaths != nil{
+				promotetest.MigratePromote("http://"+migrateTargetIndyHost, newBuildName, sourceStore, rhTargetStore, rhpaths, false)
+			}
 		} else {
 			for _, down := range downloads {
 				broken = !downloadFunc(down[0], down[1], down[2])

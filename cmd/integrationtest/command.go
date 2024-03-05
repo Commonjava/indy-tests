@@ -40,11 +40,12 @@ func NewIntegrationTestCmd() *cobra.Command {
 			keepPod, _ := cmd.Flags().GetBool("keepPod")
 			sidecar, _ := cmd.Flags().GetBool("sidecar")
 			indyProxyUrl, _ := cmd.Flags().GetString("indyProxyUrl")
+			migrateTargetIndy, _ := cmd.Flags().GetString("migrateTargetIndy")
 			metaCheckRepo := ""
 			if len(args) >= 5 {
 				metaCheckRepo = args[4]
 			}
-			integrationtest.Run(args[0], args[1], args[2], args[3], metaCheckRepo, clearCache, dryRun, keepPod, sidecar, indyProxyUrl)
+			integrationtest.Run(args[0], args[1], args[2], args[3], metaCheckRepo, clearCache, dryRun, keepPod, sidecar, indyProxyUrl, migrateTargetIndy)
 		},
 	}
 
@@ -53,6 +54,7 @@ func NewIntegrationTestCmd() *cobra.Command {
 	exec.Flags().BoolP("keepPod", "k", false, "Keep the pod after test to debug.")
 	exec.Flags().BoolP("sidecar", "s", false, "Send requests through sidecar.")
 	exec.Flags().StringP("indyProxyUrl", "p", "", "Indy generic proxy url.")
+	exec.Flags().StringP("migrateTargetIndy", "m", "", "Migrate download artifacts to new Indy url")
 	return exec
 }
 
