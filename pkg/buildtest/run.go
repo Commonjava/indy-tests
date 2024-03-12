@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/commonjava/indy-tests/pkg/promotetest"
 
@@ -18,6 +19,8 @@ const (
 	PROXY_           = "proxy-"
 	//migrateTargetIndyHost = "indy-gateway-indy--test.apps.gpc.ocp-hub.prod.psi.redhat.com"
 )
+
+const DATA_TIME = "2006-01-02 15:04:05"
 
 func Run(originalIndy, foloId, replacement, targetIndy, packageType string, processNum int) {
 	origIndy := originalIndy
@@ -75,7 +78,7 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 		return success
 	}
 
-	migrateFunc := func(md5str, originalArtiURL, targetArtiURL string, migrateTargetArtiURL string) bool {
+	migrateFunc := func(md5str, originalArtiURL, targetArtiURL, migrateTargetArtiURL string) bool {
 		fileLoc := path.Join(downloadDir, path.Base(targetArtiURL))
 		if dryRun {
 			fmt.Printf("Dry run download, url: %s\n", targetArtiURL)
@@ -102,12 +105,16 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 			broken = !common.ConcurrentRun(processNum, downloads, downloadFunc)
 		} else if migrateEnabled {
 			migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
-			migrateUploads := prepareDownloadEntriesByFolo(migrateTargetIndyHost, newBuildName, packageType, foloTrackContent, additionalRepos, proxyEnabled)
 			paths := []string{}
 			rhpaths := []string{}
 			for i, down := range downloads {
-				fmt.Print(i)
-				broken = !migrateFunc(down[0], down[1], down[2], migrateUploads[i][2])
+				if strings.Contains(down[3],"/maven/remote/") || strings.Contains(down[3],"/npm/remote/"){
+					continue
+				}
+				deletePath := setHostname(down[3],migrateTargetIndyHost)
+				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), deletePath)
+				broken = !delRequest(deletePath)
+				broken = !migrateFunc(down[0], down[1], down[2], setHostname(down[2],migrateTargetIndyHost))
 				if broken {
 					break
 				} else {
@@ -122,9 +129,13 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 			rhTargetStore := packageType+":hosted:pnc-builds"
 			sourceStore := packageType+":hosted:"+newBuildName
 			promotetest.MigratePromote("http://"+migrateTargetIndyHost, newBuildName, sourceStore, targetStore, paths, false)
-			if rhpaths != nil{
+			if len(rhpaths) > 0 {
+				fmt.Printf("Waiting 180s...\n")
+				time.Sleep(180 * time.Second)
 				promotetest.MigratePromote("http://"+migrateTargetIndyHost, newBuildName, sourceStore, rhTargetStore, rhpaths, false)
 			}
+			fmt.Println("Purging migate target Hosted and Group repo")
+			defer DeleteIndyTestRepos("http://"+migrateTargetIndyHost, packageType, newBuildName)
 		} else {
 			for _, down := range downloads {
 				broken = !downloadFunc(down[0], down[1], down[2])
@@ -254,7 +265,7 @@ func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId, packageType string,
 			}
 			downUrl = fmt.Sprintf("%s%s", targetIndy, p)
 		}
-		result[down.Path] = []string{down.Md5, "", downUrl}
+		result[down.Path] = []string{down.Md5, "", downUrl, down.LocalUrl}
 	}
 	return result
 }
@@ -325,4 +336,13 @@ func prepareDownUploadDirectories(buildId string, clearCache bool) (string, stri
 	}
 	fmt.Printf("Prepared download dir: %s, upload dir: %s\n", downloadDir, uploadDir)
 	return downloadDir, uploadDir
+}
+
+func setHostname(addr, hostname string) string {
+    u, err := url.Parse(addr)
+    if err != nil {
+        return ""
+    }
+    u.Host = hostname
+    return u.String()
 }
