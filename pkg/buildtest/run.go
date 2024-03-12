@@ -108,26 +108,26 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 			paths := []string{}
 			rhpaths := []string{}
 			for i, down := range downloads {
-				if strings.Contains(down[3],"/maven/remote/") || strings.Contains(down[3],"/npm/remote/"){
+				if strings.Contains(down[3], "/maven/remote/") || strings.Contains(down[3], "/npm/remote/") {
 					continue
 				}
-				deletePath := setHostname(down[3],migrateTargetIndyHost)
+				deletePath := setHostname(down[3], migrateTargetIndyHost)
 				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), deletePath)
 				broken = !delRequest(deletePath)
-				broken = !migrateFunc(down[0], down[1], down[2], setHostname(down[2],migrateTargetIndyHost))
+				broken = !migrateFunc(down[0], down[1], down[2], setHostname(down[2], migrateTargetIndyHost))
 				if broken {
 					break
 				} else {
-					if strings.Contains(i, "redhat"){
+					if strings.Contains(i, "redhat") {
 						rhpaths = append(rhpaths, i)
 					} else {
 						paths = append(paths, i)
 					}
 				}
 			}
-			targetStore := packageType+":hosted:shared-imports"
-			rhTargetStore := packageType+":hosted:pnc-builds"
-			sourceStore := packageType+":hosted:"+newBuildName
+			targetStore := packageType + ":hosted:shared-imports"
+			rhTargetStore := packageType + ":hosted:pnc-builds"
+			sourceStore := packageType + ":hosted:" + newBuildName
 			promotetest.MigratePromote("http://"+migrateTargetIndyHost, newBuildName, sourceStore, targetStore, paths, false)
 			if len(rhpaths) > 0 {
 				fmt.Printf("Waiting 180s...\n")
@@ -339,10 +339,10 @@ func prepareDownUploadDirectories(buildId string, clearCache bool) (string, stri
 }
 
 func setHostname(addr, hostname string) string {
-    u, err := url.Parse(addr)
-    if err != nil {
-        return ""
-    }
-    u.Host = hostname
-    return u.String()
+	u, err := url.Parse(addr)
+	if err != nil {
+		return ""
+	}
+	u.Host = hostname
+	return u.String()
 }
