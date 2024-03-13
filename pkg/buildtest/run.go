@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/commonjava/indy-tests/pkg/promotetest"
-
 	common "github.com/commonjava/indy-tests/pkg/common"
 )
 
@@ -17,7 +15,6 @@ const (
 	TMP_DOWNLOAD_DIR = "/tmp/download"
 	TMP_UPLOAD_DIR   = "/tmp/upload"
 	PROXY_           = "proxy-"
-	//migrateTargetIndyHost = "indy-gateway-indy--test.apps.gpc.ocp-hub.prod.psi.redhat.com"
 )
 
 const DATA_TIME = "2006-01-02 15:04:05"
@@ -50,7 +47,6 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 	if migrateEnabled {
 		migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
 		fmt.Printf("Migrate to host %s", migrateTargetIndyHost)
-		prepareIndyRepos("http://"+migrateTargetIndyHost, newBuildName, *buildMeta, additionalRepos, dryRun)
 	}
 
 	trackingId := foloTrackContent.TrackingKey.Id
@@ -105,37 +101,18 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 			broken = !common.ConcurrentRun(processNum, downloads, downloadFunc)
 		} else if migrateEnabled {
 			migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
-			paths := []string{}
-			rhpaths := []string{}
-			for i, down := range downloads {
+			for _, down := range downloads {
 				if strings.Contains(down[3], "/maven/remote/") || strings.Contains(down[3], "/npm/remote/") {
 					continue
 				}
-				deletePath := setHostname(down[3], migrateTargetIndyHost)
-				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), deletePath)
-				broken = !delRequest(deletePath)
-				broken = !migrateFunc(down[0], down[1], down[2], setHostname(down[2], migrateTargetIndyHost))
+				migratePath := setHostname(down[3], migrateTargetIndyHost)
+				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
+				broken = !delRequest(migratePath)
+				broken = !migrateFunc(down[0], down[1], down[2], migratePath)
 				if broken {
 					break
-				} else {
-					if strings.Contains(i, "redhat") {
-						rhpaths = append(rhpaths, i)
-					} else {
-						paths = append(paths, i)
-					}
 				}
 			}
-			targetStore := packageType + ":hosted:shared-imports"
-			rhTargetStore := packageType + ":hosted:pnc-builds"
-			sourceStore := packageType + ":hosted:" + newBuildName
-			promotetest.MigratePromote("http://"+migrateTargetIndyHost, newBuildName, sourceStore, targetStore, paths, false)
-			if len(rhpaths) > 0 {
-				fmt.Printf("Waiting 180s...\n")
-				time.Sleep(180 * time.Second)
-				promotetest.MigratePromote("http://"+migrateTargetIndyHost, newBuildName, sourceStore, rhTargetStore, rhpaths, false)
-			}
-			fmt.Println("Purging migate target Hosted and Group repo")
-			defer DeleteIndyTestRepos("http://"+migrateTargetIndyHost, packageType, newBuildName)
 		} else {
 			for _, down := range downloads {
 				broken = !downloadFunc(down[0], down[1], down[2])
