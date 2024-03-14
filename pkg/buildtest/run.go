@@ -41,12 +41,11 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 	if migrateEnabled {
 		migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
 		fmt.Printf("Migrate to host %s", migrateTargetIndyHost)
-	} else {
-		// Prepare the indy repos for the whole testing
-		buildMeta := decideMeta(packageType)
-		if !prepareIndyRepos("http://"+targetIndyHost, newBuildName, *buildMeta, additionalRepos, dryRun) {
-			os.Exit(1)
-		}
+	}
+	// Prepare the indy repos for the whole testing
+	buildMeta := decideMeta(packageType)
+	if !prepareIndyRepos("http://"+targetIndyHost, newBuildName, *buildMeta, additionalRepos, dryRun) {
+		os.Exit(1)
 	}
 
 	trackingId := foloTrackContent.TrackingKey.Id
@@ -97,7 +96,7 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 
 	if migrateEnabled {
 		migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
-		migrateArtifacts := prepareMigrateEntriesByFolo(targetIndy, migrateTargetIndyHost, packageType, foloTrackContent)
+		migrateArtifacts := prepareMigrateEntriesByFolo(targetIndy, migrateTargetIndyHost, packageType, newBuildName, foloTrackContent)
 		fmt.Printf("Waiting 60s...\n")
 		time.Sleep(60 * time.Second) // wait for Indy event handled
 		for _, down := range migrateArtifacts {
@@ -255,7 +254,7 @@ func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId, packageType string,
 }
 
 func prepareMigrateEntriesByFolo(targetIndyURL, migrateTargetIndyHost, packageType string,
-	foloRecord common.TrackedContent) map[string][]string {
+	newBuildId, foloRecord common.TrackedContent) map[string][]string {
 	targetIndy := normIndyURL(targetIndyURL)
 	result := make(map[string][]string)
 	for _, down := range foloRecord.Downloads {
@@ -269,7 +268,7 @@ func prepareMigrateEntriesByFolo(targetIndyURL, migrateTargetIndyHost, packageTy
 			if !strings.HasPrefix(down.StoreKey, packageType) {
 				p = path.Join("api/content", repoPath, down.Path)
 			} else {
-				p = path.Join("api/content", packageType, "group/build-test-91388", down.Path)
+				p = path.Join("api/content", packageType, "group", newBuildId, down.Path)
 			}
 		}
 
