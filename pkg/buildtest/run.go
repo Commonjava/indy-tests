@@ -102,15 +102,27 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 			migratePath := setHostname(down[3], migrateTargetIndyHost)
 			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
 			broken = !delRequest(migratePath)
-			if strings.Contains(down[2], "npm:remote:npmjs") {
+
+			if down[1] != packageType+":hosted:shared-imports" {
+				extra, _ := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down[4])
+				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), extra)
+				broken = !delRequest(extra)
+			}
+
+			if down[1] == "npm:remote:npmjs" {
 				migratePath := strings.Replace(migratePath, "/npm/remote/npmjs", "/npm/hosted/shared-imports", 1)
 				broken = !delRequest(migratePath)
-			} else if strings.Contains(down[2], "maven:remote:central") {
+
+			} else if down[1] == "maven:remote:central" {
 				migratePath := strings.Replace(migratePath, "/maven/remote/central", "/maven/hosted/shared-imports", 1)
+				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
 				broken = !delRequest(migratePath)
-			} else if strings.Contains(down[2], "maven:remote:mrrc-ga-rh") {
+
+			} else if down[1] == "maven:remote:mrrc-ga-rh" {
 				migratePath := strings.Replace(migratePath, "/maven/remote/mrrc-ga-rh", "/maven/hosted/pnc-builds", 1)
+				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
 				broken = !delRequest(migratePath)
+
 			}
 			broken = !migrateFunc(down[0], down[2], migratePath)
 			if broken {
@@ -293,7 +305,7 @@ func prepareMigrateEntriesByFolo(targetIndyURL, newBuildId, packageType string,
 			}
 			downUrl = fmt.Sprintf("%s%s", targetIndy, p)
 		}
-		result[down.Path] = []string{down.Md5, repoPath, downUrl, down.LocalUrl}
+		result[down.Path] = []string{down.Md5, down.StoreKey, downUrl, down.LocalUrl, down.Path}
 	}
 	return result
 }
