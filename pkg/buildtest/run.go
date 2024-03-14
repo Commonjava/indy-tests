@@ -253,8 +253,8 @@ func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId, packageType string,
 	return result
 }
 
-func prepareMigrateEntriesByFolo(targetIndyURL, migrateTargetIndyHost, packageType string,
-	newBuildId, foloRecord common.TrackedContent) map[string][]string {
+func prepareMigrateEntriesByFolo(targetIndyURL, migrateTargetIndyHost, packageType,
+	newBuildId string, foloRecord common.TrackedContent) map[string][]string {
 	targetIndy := normIndyURL(targetIndyURL)
 	result := make(map[string][]string)
 	for _, down := range foloRecord.Downloads {
