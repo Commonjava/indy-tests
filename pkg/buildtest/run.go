@@ -110,17 +110,17 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 			}
 
 			if down[1] == "npm:remote:npmjs" || down[1] == "maven:remote:central" {
-				migratePath := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down[4])
+				migratePath, _  := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down[4])
 				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
 				broken = !delRequest(migratePath)
 
 			} else if down[1] == "maven:remote:mrrc-ga-rh" {
-				migratePath := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/pnc-builds", down[4])
+				migratePath, _  := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/pnc-builds", down[4])
 				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
 				broken = !delRequest(migratePath)
 
-			} else if stings.HasPrefix(down[1], "maven:hosted:build-") {
-				migratePath := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/pnc-builds", down[4])
+			} else if strings.HasPrefix(down[1], "maven:hosted:build-") {
+				migratePath, _  := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/pnc-builds", down[4])
 				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
 				broken = !delRequest(migratePath)
 
