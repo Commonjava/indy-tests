@@ -276,7 +276,7 @@ func prepareMigrateEntriesByFolo(targetIndyURL, migrateTargetIndyHost, packageTy
 		downUrl = fmt.Sprintf("%s%s", targetIndy, p)
 
 		broken := false
-		migratePath := setHostname(downUrl, migrateTargetIndyHost)
+		migratePath := setHostname(down.LocalUrl, migrateTargetIndyHost)
 		fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
 		broken = !delRequest(migratePath)
 
