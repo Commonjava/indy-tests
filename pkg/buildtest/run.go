@@ -294,7 +294,7 @@ func prepareMigrateEntriesByFolo(targetIndyURL, newBuildId, packageType string,
 			if !strings.HasPrefix(down.StoreKey, packageType) {
 				p = path.Join("api/content", repoPath, down.Path)
 			} else {
-				p = path.Join("api/content", packageType, "group/builds-untested+shared-imports+public", down.Path)
+				p = path.Join("api/content", packageType, "group/build-test-91388", down.Path)
 			}
 			downUrl = fmt.Sprintf("%s%s", targetIndy, p)
 		}
