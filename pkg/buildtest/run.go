@@ -97,30 +97,11 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 
 	if migrateEnabled {
 		migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
-		migrateArtifacts := prepareMigrateEntriesByFolo(targetIndy, newBuildName, packageType, foloTrackContent)
+		migrateArtifacts := prepareMigrateEntriesByFolo(targetIndy, migrateTargetIndyHost, packageType, foloTrackContent)
+		fmt.Printf("Waiting 60s...\n")
+		time.Sleep(60 * time.Second) // wait for Indy event handled
 		for _, down := range migrateArtifacts {
-			migratePath := setHostname(down[3], migrateTargetIndyHost)
-			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
-			//broken = !delRequest(migratePath)
-
-			if down[1] != packageType+":hosted:shared-imports" {
-				extra, _ := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down[4])
-				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), extra)
-				//broken = !delRequest(extra)
-			}
-
-			if down[1] == "npm:remote:npmjs" || down[1] == "maven:remote:central" {
-				migratePath, _  := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down[4])
-				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
-				//broken = !delRequest(migratePath)
-
-			} else if down[1] == "maven:remote:mrrc-ga-rh" || strings.HasPrefix(down[1], "maven:hosted:build-") {
-				migratePath, _  := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/pnc-builds", down[4])
-				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
-				//broken = !delRequest(migratePath)
-
-			}
-			broken = !migrateFunc(down[0], down[2], migratePath)
+			broken = !migrateFunc(down[0], down[2], down[1])
 			if broken {
 				break
 			}
@@ -273,7 +254,7 @@ func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId, packageType string,
 	return result
 }
 
-func prepareMigrateEntriesByFolo(targetIndyURL, newBuildId, packageType string,
+func prepareMigrateEntriesByFolo(targetIndyURL, migrateTargetIndyHost, packageType string,
 	foloRecord common.TrackedContent) map[string][]string {
 	targetIndy := normIndyURL(targetIndyURL)
 	result := make(map[string][]string)
@@ -284,16 +265,42 @@ func prepareMigrateEntriesByFolo(targetIndyURL, newBuildId, packageType string,
 		if down.AccessChannel == "GENERIC_PROXY" {
 			repoPath = strings.Replace(repoPath, "generic-http/remote/r-", "generic-http/hosted/h-", 1)
 			p = path.Join("api/content", repoPath, down.Path)
-			downUrl = fmt.Sprintf("%s%s", targetIndy, p)
 		} else {
 			if !strings.HasPrefix(down.StoreKey, packageType) {
 				p = path.Join("api/content", repoPath, down.Path)
 			} else {
 				p = path.Join("api/content", packageType, "group/build-test-91388", down.Path)
 			}
-			downUrl = fmt.Sprintf("%s%s", targetIndy, p)
 		}
-		result[down.Path] = []string{down.Md5, down.StoreKey, downUrl, down.LocalUrl, down.Path}
+
+		downUrl = fmt.Sprintf("%s%s", targetIndy, p)
+
+		broken := false
+		migratePath := setHostname(downUrl, migrateTargetIndyHost)
+		fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
+		broken = !delRequest(migratePath)
+
+		if down.StoreKey != packageType+":hosted:shared-imports" {
+			extra, _ := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down.Path)
+			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), extra)
+			broken = !delRequest(extra)
+		}
+
+		if down.StoreKey == "npm:remote:npmjs" || down.StoreKey == "maven:remote:central" {
+			migratePath, _ := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down.Path)
+			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
+			broken = !delRequest(migratePath)
+		} else if down.StoreKey == "maven:remote:mrrc-ga-rh" || strings.HasPrefix(down.StoreKey, "maven:hosted:build-") {
+			migratePath, _ := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/pnc-builds", down.Path)
+			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
+			broken = !delRequest(migratePath)
+		}
+
+		if broken {
+			fmt.Printf("[%s] Deletion failed for %s\n", time.Now().Format(DATA_TIME), migratePath)
+		}
+
+		result[down.Path] = []string{down.Md5, migratePath, downUrl}
 	}
 	return result
 }
