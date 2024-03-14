@@ -37,16 +37,16 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 	common.ValidateTargetIndyOrExit(originalIndy)
 	targetIndyHost, _ := common.ValidateTargetIndyOrExit(targetIndy)
 
-	// Prepare the indy repos for the whole testing
-	buildMeta := decideMeta(packageType)
-	if !prepareIndyRepos("http://"+targetIndyHost, newBuildName, *buildMeta, additionalRepos, dryRun) {
-		os.Exit(1)
-	}
-
 	migrateEnabled := (migrateTargetIndy != "")
 	if migrateEnabled {
 		migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
 		fmt.Printf("Migrate to host %s", migrateTargetIndyHost)
+	} else {
+		// Prepare the indy repos for the whole testing
+		buildMeta := decideMeta(packageType)
+		if !prepareIndyRepos("http://"+targetIndyHost, newBuildName, *buildMeta, additionalRepos, dryRun) {
+			os.Exit(1)
+		}
 	}
 
 	trackingId := foloTrackContent.TrackingKey.Id
@@ -97,7 +97,7 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 
 	if migrateEnabled {
 		migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
-		migrateArtifacts := prepareMigrateEntriesByFolo(targetIndy, newBuildName, packageType, foloTrackContent, additionalRepos, proxyEnabled)
+		migrateArtifacts := prepareMigrateEntriesByFolo(targetIndy, newBuildName, packageType, foloTrackContent)
 		for _, down := range migrateArtifacts {
 			migratePath := setHostname(down[3], migrateTargetIndyHost)
 			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
@@ -109,17 +109,18 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 				broken = !delRequest(extra)
 			}
 
-			if down[1] == "npm:remote:npmjs" {
-				migratePath := strings.Replace(migratePath, "/npm/remote/npmjs", "/npm/hosted/shared-imports", 1)
-				broken = !delRequest(migratePath)
-
-			} else if down[1] == "maven:remote:central" {
-				migratePath := strings.Replace(migratePath, "/maven/remote/central", "/maven/hosted/shared-imports", 1)
+			if down[1] == "npm:remote:npmjs" || down[1] == "maven:remote:central" {
+				migratePath := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down[4])
 				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
 				broken = !delRequest(migratePath)
 
 			} else if down[1] == "maven:remote:mrrc-ga-rh" {
-				migratePath := strings.Replace(migratePath, "/maven/remote/mrrc-ga-rh", "/maven/hosted/pnc-builds", 1)
+				migratePath := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/pnc-builds", down[4])
+				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
+				broken = !delRequest(migratePath)
+
+			} else if stings.HasPrefix(down[1], "maven:hosted:build-") {
+				migratePath := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/pnc-builds", down[4])
 				fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
 				broken = !delRequest(migratePath)
 
@@ -278,7 +279,7 @@ func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId, packageType string,
 }
 
 func prepareMigrateEntriesByFolo(targetIndyURL, newBuildId, packageType string,
-	foloRecord common.TrackedContent, additionalRepos []string, proxyEnabled bool) map[string][]string {
+	foloRecord common.TrackedContent) map[string][]string {
 	targetIndy := normIndyURL(targetIndyURL)
 	result := make(map[string][]string)
 	for _, down := range foloRecord.Downloads {
@@ -286,22 +287,14 @@ func prepareMigrateEntriesByFolo(targetIndyURL, newBuildId, packageType string,
 		downUrl := ""
 		repoPath := strings.ReplaceAll(down.StoreKey, ":", "/")
 		if down.AccessChannel == "GENERIC_PROXY" {
-			if proxyEnabled {
-				downUrl = fmt.Sprintf("%s%s", PROXY_, down.OriginUrl)
-			} else {
-				// Generic remote repo may not be available when we replay the build. PNC has promoted the files to "h-" repo,
-				// so we replace "generic-http/remote/r-xxxx" to "generic-http:hosted:h-xxxx"
-				repoPath = strings.Replace(repoPath, "generic-http/remote/r-", "generic-http/hosted/h-", 1)
-				p = path.Join("api/content", repoPath, down.Path)
-				downUrl = fmt.Sprintf("%s%s", targetIndy, p)
-			}
+			repoPath = strings.Replace(repoPath, "generic-http/remote/r-", "generic-http/hosted/h-", 1)
+			p = path.Join("api/content", repoPath, down.Path)
+			downUrl = fmt.Sprintf("%s%s", targetIndy, p)
 		} else {
-			// To explain the 'HasPrefix': NPM build can have downloads from maven repos (or vice verse). We use the original repo
-			// if the storeKey is not compliant with packageType
-			if common.Contains(additionalRepos, down.StoreKey) || !strings.HasPrefix(down.StoreKey, packageType) {
-				p = path.Join("api/folo/track", newBuildId, repoPath, down.Path)
+			if !strings.HasPrefix(down.StoreKey, packageType) {
+				p = path.Join("api/content", repoPath, down.Path)
 			} else {
-				p = path.Join("api/folo/track", newBuildId, packageType, "group", newBuildId, down.Path)
+				p = path.Join("api/content", packageType, "group/builds-untested+shared-imports+public", down.Path)
 			}
 			downUrl = fmt.Sprintf("%s%s", targetIndy, p)
 		}

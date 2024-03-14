@@ -99,15 +99,15 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	//k. Delete the temp group and the hosted repo, and folo record
 	defer cleanUp(indyBaseUrl, packageType, buildName, dryRun)
 
-	// Advanced checks
-	if buildSuccess && !dryRun {
-		if !verifyFoloRecord(indyBaseUrl, buildName, foloTrackContent) {
-			return
-		}
-	}
-
 	migrateEnabled := (migrateTargetIndy != "")
 	if !migrateEnabled {
+		// Advanced checks
+		if buildSuccess && !dryRun {
+			if !verifyFoloRecord(indyBaseUrl, buildName, foloTrackContent) {
+				return
+			}
+		}
+
 		//f. Retrieve the metadata files which will be affected by promotion
 		metaFiles := calculateMetadataFiles(foloTrackContent)
 		metaFilesLoc := path.Join(TMP_METADATA_DIR, "before-promote")
