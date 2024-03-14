@@ -101,7 +101,7 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 		fmt.Printf("Waiting 60s...\n")
 		time.Sleep(60 * time.Second) // wait for Indy event handled
 		for _, down := range migrateArtifacts {
-			broken = !migrateFunc(down[0], down[2], down[1])
+			broken = !migrateFunc(down[0], down[1], down[2])
 			if broken {
 				break
 			}
@@ -278,29 +278,29 @@ func prepareMigrateEntriesByFolo(targetIndyURL, migrateTargetIndyHost, packageTy
 		broken := false
 		migratePath := setHostname(down.LocalUrl, migrateTargetIndyHost)
 		fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
-		broken = !delRequest(migratePath)
+		broken = !delArtifact(migratePath)
 
 		if down.StoreKey != packageType+":hosted:shared-imports" {
 			extra, _ := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down.Path)
 			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), extra)
-			broken = !delRequest(extra)
+			broken = !delArtifact(extra)
 		}
 
 		if down.StoreKey == "npm:remote:npmjs" || down.StoreKey == "maven:remote:central" {
-			migratePath, _ := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down.Path)
+			migratePath, _ = url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down.Path)
 			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
-			broken = !delRequest(migratePath)
+			broken = !delArtifact(migratePath)
 		} else if down.StoreKey == "maven:remote:mrrc-ga-rh" || strings.HasPrefix(down.StoreKey, "maven:hosted:build-") {
-			migratePath, _ := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/pnc-builds", down.Path)
+			migratePath, _ = url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/pnc-builds", down.Path)
 			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
-			broken = !delRequest(migratePath)
+			broken = !delArtifact(migratePath)
 		}
 
 		if broken {
 			fmt.Printf("[%s] Deletion failed for %s\n", time.Now().Format(DATA_TIME), migratePath)
 		}
 
-		result[down.Path] = []string{down.Md5, migratePath, downUrl}
+		result[down.Path] = []string{down.Md5, downUrl, migratePath}
 	}
 	return result
 }
@@ -380,4 +380,9 @@ func setHostname(addr, hostname string) string {
 	}
 	u.Host = hostname
 	return u.String()
+}
+
+func delArtifact(url string) bool {
+	_, _, succeeded := common.HTTPRequest(url, common.MethodDelete, nil, false, nil, nil, "", false)
+	return succeeded
 }
