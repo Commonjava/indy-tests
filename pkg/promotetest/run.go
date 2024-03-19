@@ -46,3 +46,7 @@ func DoRun(indyBaseUrl, foloTrackId, sourceStore, targetStore, newVersionNum str
 
 	return promote(indyBaseUrl, foloTrackId, sourceStore, targetStore, paths, dryRun)
 }
+
+func MigratePromote(indyURL, trackingId, source, target string, paths []string, dryRun bool) (string, int, bool) {
+	return promote(indyURL, trackingId, source, target, paths, dryRun)
+}

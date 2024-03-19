@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	common "github.com/commonjava/indy-tests/pkg/common"
 )
@@ -16,6 +17,8 @@ const (
 	PROXY_           = "proxy-"
 )
 
+const DATA_TIME = "2006-01-02 15:04:05"
+
 func Run(originalIndy, foloId, replacement, targetIndy, packageType string, processNum int) {
 	origIndy := originalIndy
 	if !strings.HasPrefix(origIndy, "http://") {
@@ -23,17 +26,22 @@ func Run(originalIndy, foloId, replacement, targetIndy, packageType string, proc
 	}
 	foloTrackContent := common.GetFoloRecord(origIndy, foloId)
 	newBuildName := common.GenerateRandomBuildName()
-	DoRun(originalIndy, targetIndy, "", packageType, newBuildName, foloTrackContent, nil, processNum, false, false)
+	DoRun(originalIndy, targetIndy, "", "", packageType, newBuildName, foloTrackContent, nil, processNum, false, false)
 }
 
 // Create the repo structure and do the download/upload
-func DoRun(originalIndy, targetIndy, indyProxyUrl, packageType, newBuildName string, foloTrackContent common.TrackedContent,
+func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageType, newBuildName string, foloTrackContent common.TrackedContent,
 	additionalRepos []string,
 	processNum int, clearCache, dryRun bool) bool {
 
 	common.ValidateTargetIndyOrExit(originalIndy)
 	targetIndyHost, _ := common.ValidateTargetIndyOrExit(targetIndy)
 
+	migrateEnabled := (migrateTargetIndy != "")
+	if migrateEnabled {
+		migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
+		fmt.Printf("Migrate to host %s", migrateTargetIndyHost)
+	}
 	// Prepare the indy repos for the whole testing
 	buildMeta := decideMeta(packageType)
 	if !prepareIndyRepos("http://"+targetIndyHost, newBuildName, *buildMeta, additionalRepos, dryRun) {
@@ -64,8 +72,49 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, packageType, newBuildName str
 		}
 		return success
 	}
+
+	migrateFunc := func(md5str, targetArtiURL, migrateTargetArtiURL string) bool {
+		fileLoc := path.Join(downloadDir, path.Base(targetArtiURL))
+		if dryRun {
+			fmt.Printf("Dry run download, url: %s\n", targetArtiURL)
+			return true
+		}
+		success := false
+		success, _ = common.DownloadFile(targetArtiURL, fileLoc)
+		if success {
+			common.Md5Check(fileLoc, md5str)
+			if dryRun {
+				fmt.Printf("Dry run upload, url: %s\n", migrateTargetArtiURL)
+				return true
+			}
+			common.UploadFile(migrateTargetArtiURL, fileLoc)
+		}
+		return success
+	}
+
 	broken := false
-	if len(downloads) > 0 {
+
+	if migrateEnabled {
+		migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
+		migrateArtifacts := prepareMigrateEntriesByFolo(targetIndy, migrateTargetIndyHost, packageType, newBuildName, foloTrackContent)
+		fmt.Printf("Waiting 60s...\n")
+		time.Sleep(120 * time.Second) // wait for Indy event handled
+		for _, down := range migrateArtifacts {
+			broken = !migrateFunc(down[0], down[1], down[2])
+			if broken {
+				break
+			}
+		}
+		fmt.Println("==========================================")
+		if broken {
+			fmt.Printf("Build test failed due to some downloading errors. Please see above logs to see the details.\n\n")
+			os.Exit(1)
+		}
+		fmt.Printf("Migration artifacts handling finished.\n\n")
+		return true
+	}
+
+	if len(downloads) > 0 && !migrateEnabled {
 		fmt.Println("Start handling downloads artifacts.")
 		fmt.Printf("==========================================\n\n")
 		if processNum > 1 {
@@ -109,7 +158,7 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, packageType, newBuildName str
 
 	uploads := prepareUploadEntriesByFolo(originalIndy, targetIndy, newBuildName, foloTrackContent)
 
-	if len(uploads) > 0 {
+	if len(uploads) > 0 && !migrateEnabled {
 		fmt.Println("Start handling uploads artifacts.")
 		fmt.Printf("==========================================\n\n")
 		if processNum > 1 {
@@ -204,6 +253,61 @@ func prepareDownloadEntriesByFolo(targetIndyURL, newBuildId, packageType string,
 	return result
 }
 
+func prepareMigrateEntriesByFolo(targetIndyURL, migrateTargetIndyHost, packageType,
+	newBuildId string, foloRecord common.TrackedContent) map[string][]string {
+	targetIndy := normIndyURL(targetIndyURL)
+	result := make(map[string][]string)
+	for _, down := range foloRecord.Downloads {
+		var p string
+		downUrl := ""
+		repoPath := strings.ReplaceAll(down.StoreKey, ":", "/")
+		if down.AccessChannel == "GENERIC_PROXY" {
+			repoPath = strings.Replace(repoPath, "generic-http/remote/r-", "generic-http/hosted/h-", 1)
+			p = path.Join("api/content", repoPath, down.Path)
+		} else {
+			if !strings.HasPrefix(down.StoreKey, packageType) {
+				p = path.Join("api/content", repoPath, down.Path)
+			} else {
+				p = path.Join("api/content", packageType, "group", newBuildId, down.Path)
+			}
+		}
+
+		downUrl = fmt.Sprintf("%s%s", targetIndy, p)
+
+		broken := false
+		migratePath := setHostname(down.LocalUrl, migrateTargetIndyHost)
+		fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
+		broken = !delArtifact(migratePath)
+		time.Sleep(100 * time.Millisecond)
+
+		if !strings.HasSuffix( down.StoreKey, ":hosted:shared-imports" ) {
+			extra, _ := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down.Path)
+			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), extra)
+			broken = !delArtifact(extra)
+			time.Sleep(100 * time.Millisecond)
+		}
+
+		if down.StoreKey == "npm:remote:npmjs" || down.StoreKey == "maven:remote:central" {
+			migratePath, _ = url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down.Path)
+			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
+			broken = !delArtifact(migratePath)
+			time.Sleep(100 * time.Millisecond)
+		} else if down.StoreKey == "maven:remote:mrrc-ga-rh" || strings.HasPrefix(down.StoreKey, "maven:hosted:build-") {
+			migratePath, _ = url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/pnc-builds", down.Path)
+			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
+			broken = !delArtifact(migratePath)
+			time.Sleep(100 * time.Millisecond)
+		}
+
+		if broken {
+			fmt.Printf("[%s] Deletion failed for %s\n", time.Now().Format(DATA_TIME), migratePath)
+		}
+
+		result[down.Path] = []string{down.Md5, downUrl, migratePath}
+	}
+	return result
+}
+
 // For uploads entries, firstly they should be downloaded from original indy server. We use original indy server to
 // make the download url, and use the target indy server to make the upload url
 func prepareUploadEntriesByFolo(originalIndyURL, targetIndyURL, newBuildId string, foloRecord common.TrackedContent) map[string][]string {
@@ -270,4 +374,18 @@ func prepareDownUploadDirectories(buildId string, clearCache bool) (string, stri
 	}
 	fmt.Printf("Prepared download dir: %s, upload dir: %s\n", downloadDir, uploadDir)
 	return downloadDir, uploadDir
+}
+
+func setHostname(addr, hostname string) string {
+	u, err := url.Parse(addr)
+	if err != nil {
+		return ""
+	}
+	u.Host = hostname
+	return u.String()
+}
+
+func delArtifact(url string) bool {
+	_, _, succeeded := common.HTTPRequest(url, common.MethodDelete, nil, false, nil, nil, "", false)
+	return succeeded
 }

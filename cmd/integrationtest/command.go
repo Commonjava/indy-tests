@@ -44,7 +44,7 @@ func NewIntegrationTestCmd() *cobra.Command {
 			if len(args) >= 5 {
 				metaCheckRepo = args[4]
 			}
-			integrationtest.Run(args[0], args[1], args[2], args[3], metaCheckRepo, clearCache, dryRun, keepPod, sidecar, indyProxyUrl)
+			integrationtest.Run(args[0], args[1], args[2], args[3], metaCheckRepo, clearCache, dryRun, keepPod, sidecar, indyProxyUrl, "")
 		},
 	}
 
