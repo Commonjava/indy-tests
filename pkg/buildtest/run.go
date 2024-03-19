@@ -280,7 +280,7 @@ func prepareMigrateEntriesByFolo(targetIndyURL, migrateTargetIndyHost, packageTy
 		broken = !delArtifact(migratePath)
 		time.Sleep(100 * time.Millisecond)
 
-		if strings.HasSuffix( down.StoreKey, ":hosted:shared-imports" ) {
+		if !strings.HasSuffix( down.StoreKey, ":hosted:shared-imports" ) {
 			extra, _ := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down.Path)
 			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), extra)
 			broken = !delArtifact(extra)
