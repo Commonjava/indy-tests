@@ -98,7 +98,7 @@ func DoRun(originalIndy, targetIndy, indyProxyUrl, migrateTargetIndy, packageTyp
 		migrateTargetIndyHost, _ := common.ValidateTargetIndyOrExit(migrateTargetIndy)
 		migrateArtifacts := prepareMigrateEntriesByFolo(targetIndy, migrateTargetIndyHost, packageType, newBuildName, foloTrackContent)
 		fmt.Printf("Waiting 60s...\n")
-		time.Sleep(60 * time.Second) // wait for Indy event handled
+		time.Sleep(120 * time.Second) // wait for Indy event handled
 		for _, down := range migrateArtifacts {
 			broken = !migrateFunc(down[0], down[1], down[2])
 			if broken {
@@ -278,21 +278,25 @@ func prepareMigrateEntriesByFolo(targetIndyURL, migrateTargetIndyHost, packageTy
 		migratePath := setHostname(down.LocalUrl, migrateTargetIndyHost)
 		fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
 		broken = !delArtifact(migratePath)
+		time.Sleep(100 * time.Millisecond)
 
-		if down.StoreKey != packageType+":hosted:shared-imports" {
+		if strings.HasSuffix( down.StoreKey, ":hosted:shared-imports" ) {
 			extra, _ := url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down.Path)
 			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), extra)
 			broken = !delArtifact(extra)
+			time.Sleep(100 * time.Millisecond)
 		}
 
 		if down.StoreKey == "npm:remote:npmjs" || down.StoreKey == "maven:remote:central" {
 			migratePath, _ = url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/shared-imports", down.Path)
 			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
 			broken = !delArtifact(migratePath)
+			time.Sleep(100 * time.Millisecond)
 		} else if down.StoreKey == "maven:remote:mrrc-ga-rh" || strings.HasPrefix(down.StoreKey, "maven:hosted:build-") {
 			migratePath, _ = url.JoinPath("http://"+migrateTargetIndyHost, "/api/content", packageType, "/hosted/pnc-builds", down.Path)
 			fmt.Printf("[%s] Deleting %s\n", time.Now().Format(DATA_TIME), migratePath)
 			broken = !delArtifact(migratePath)
+			time.Sleep(100 * time.Millisecond)
 		}
 
 		if broken {
