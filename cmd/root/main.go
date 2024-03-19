@@ -11,6 +11,7 @@ import (
 	"github.com/commonjava/indy-tests/cmd/integrationtest"
 	"github.com/commonjava/indy-tests/cmd/promotetest"
 	"github.com/commonjava/indy-tests/cmd/statictest"
+	"github.com/commonjava/indy-tests/cmd/migrate"
 	"github.com/spf13/cobra"
 )
 
@@ -29,6 +30,7 @@ func main() {
 	rootCmd.AddCommand(integrationtest.NewIntegrationTestCmd())
 	rootCmd.AddCommand(event.NewEventTestCmd())
 	rootCmd.AddCommand(statictest.NewStaticTestCmd())
+	rootCmd.AddCommand(migrate.NewMigrateCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
