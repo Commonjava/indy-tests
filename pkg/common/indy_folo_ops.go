@@ -57,6 +57,17 @@ func GetFoloRecord(indyURL, foloRecordId string) TrackedContent {
 	return *trackContent
 }
 
+func GetFoloRecordAsString(indyURL, foloRecordId string) string {
+	URL := fmt.Sprintf("%s/api/folo/admin/%s/record", indyURL, foloRecordId)
+	fmt.Printf("Start to get folo tracking record through: %s\n", URL)
+	s, err := GetRespAsPlaintext(URL)
+	if err != nil {
+		fmt.Printf("Error: cannot get folo record %s at indy instance %s, error is: %s\n", foloRecordId, indyURL, err.Error())
+		os.Exit(1)
+	}
+	return s
+}
+
 func GetFoloRecordFromFile(fileLoc string) TrackedContent {
 	trackContent := &TrackedContent{}
 	b := ReadByteFromFile(fileLoc)
