@@ -56,7 +56,7 @@ const (
  * j. Retrieve the metadata files from step #f again, check that the new version is gone
  * k. Clean up. Delete the build group G and the hosted repo A. Delete folo record.
  */
-func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, clearCache, dryRun, keepPod, sidecar bool, indyProxyUrl string) {
+func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo string, clearCache, dryRun, keepPod, sidecar bool, indyProxyUrl string, migrateTargetIndy string) {
 	if indyProxyUrl != "" {
 		fmt.Println("Enable generic proxy: " + indyProxyUrl)
 	}
@@ -92,68 +92,71 @@ func Run(indyBaseUrl, datasetRepoUrl, buildId, promoteTargetStore, metaCheckRepo
 	originalIndy := getOriginalIndyBaseUrl(foloTrackContent.Uploads[0].LocalUrl)
 	buildName := common.GenerateRandomBuildName()
 	prev := t
-	buildSuccess := buildtest.DoRun(originalIndy, indyBaseUrl, indyProxyUrl, packageType, buildName, foloTrackContent, additionalRepos, DEFAULT_ROUTINES, clearCache, dryRun)
+	buildSuccess := buildtest.DoRun(originalIndy, indyBaseUrl, indyProxyUrl, migrateTargetIndy, packageType, buildName, foloTrackContent, additionalRepos, DEFAULT_ROUTINES, clearCache, dryRun)
 	t = time.Now()
 	fmt.Printf("Create mock group(%s) and download/upload SUCCESS, elapsed(s): %f\n", buildName, t.Sub(prev).Seconds())
 
 	//k. Delete the temp group and the hosted repo, and folo record
 	defer cleanUp(indyBaseUrl, packageType, buildName, dryRun)
 
-	// Advanced checks
-	if buildSuccess && !dryRun {
-		if !verifyFoloRecord(indyBaseUrl, buildName, foloTrackContent) {
-			return
+	migrateEnabled := (migrateTargetIndy != "")
+	if !migrateEnabled {
+		// Advanced checks
+		if buildSuccess && !dryRun {
+			if !verifyFoloRecord(indyBaseUrl, buildName, foloTrackContent) {
+				return
+			}
 		}
+
+		//f. Retrieve the metadata files which will be affected by promotion
+		metaFiles := calculateMetadataFiles(foloTrackContent)
+		metaFilesLoc := path.Join(TMP_METADATA_DIR, "before-promote")
+		newVersionNum := buildName[len(common.BUILD_TEST_):]
+		exists := true
+		passed, e := retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, !exists)
+		if !passed {
+			logger.Infof("Metadata validate failed (before). Errors: %s", e.Error())
+			panic("Metadata validate failed")
+		}
+		fmt.Printf("Metadata validate (before) SUCCESS\n")
+
+		//g. Promote the files in hosted repo A to hosted repo pnc-builds
+		foloTrackId := buildName
+		sourceStore, targetStore := getPromotionSrcTargetStores(packageType, buildName, promoteTargetStore, foloTrackContent)
+		resp, _, success := promotetest.DoRun(indyBaseUrl, foloTrackId, sourceStore, targetStore, newVersionNum, foloTrackContent, dryRun)
+		if !success {
+			fmt.Printf("Promote failed, %s\n", resp)
+			panic("Promote failed")
+		}
+
+		//h. Retrieve the metadata files again, check the new version
+		fmt.Printf("Waiting 30s...\n")
+		time.Sleep(30 * time.Second) // wait for Indy event handled
+
+		metaFilesLoc = path.Join(TMP_METADATA_DIR, "after-promote")
+		passed, e = retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, exists)
+		if !passed {
+			logger.Infof("Metadata validate failed (after promotion). Errors: %s", e.Error())
+			panic("Metadata validate failed")
+		}
+		fmt.Printf("Metadata validate (after promotion) SUCCESS\n")
+
+		//i. Rollback the promotion
+		fmt.Printf("Rollback:\n%s\n", resp)
+		promotetest.Rollback(indyBaseUrl, resp, dryRun)
+
+		//h. Retrieve the metadata files again, check the new version is GONE
+		fmt.Printf("Waiting 30s...\n")
+		time.Sleep(30 * time.Second)
+
+		metaFilesLoc = path.Join(TMP_METADATA_DIR, "rollback")
+		passed, e = retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, !exists)
+		if !passed {
+			logger.Infof("Metadata validate failed (rollback). Errors: %s", e.Error())
+			panic("Metadata validate failed")
+		}
+		fmt.Printf("Metadata validate (rollback) SUCCESS\n")
 	}
-
-	//f. Retrieve the metadata files which will be affected by promotion
-	metaFiles := calculateMetadataFiles(foloTrackContent)
-	metaFilesLoc := path.Join(TMP_METADATA_DIR, "before-promote")
-	newVersionNum := buildName[len(common.BUILD_TEST_):]
-	exists := true
-	passed, e := retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, !exists)
-	if !passed {
-		logger.Infof("Metadata validate failed (before). Errors: %s", e.Error())
-		panic("Metadata validate failed")
-	}
-	fmt.Printf("Metadata validate (before) SUCCESS\n")
-
-	//g. Promote the files in hosted repo A to hosted repo pnc-builds
-	foloTrackId := buildName
-	sourceStore, targetStore := getPromotionSrcTargetStores(packageType, buildName, promoteTargetStore, foloTrackContent)
-	resp, _, success := promotetest.DoRun(indyBaseUrl, foloTrackId, sourceStore, targetStore, newVersionNum, foloTrackContent, dryRun)
-	if !success {
-		fmt.Printf("Promote failed, %s\n", resp)
-		panic("Promote failed")
-	}
-
-	//h. Retrieve the metadata files again, check the new version
-	fmt.Printf("Waiting 30s...\n")
-	time.Sleep(30 * time.Second) // wait for Indy event handled
-
-	metaFilesLoc = path.Join(TMP_METADATA_DIR, "after-promote")
-	passed, e = retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, exists)
-	if !passed {
-		logger.Infof("Metadata validate failed (after promotion). Errors: %s", e.Error())
-		panic("Metadata validate failed")
-	}
-	fmt.Printf("Metadata validate (after promotion) SUCCESS\n")
-
-	//i. Rollback the promotion
-	fmt.Printf("Rollback:\n%s\n", resp)
-	promotetest.Rollback(indyBaseUrl, resp, dryRun)
-
-	//h. Retrieve the metadata files again, check the new version is GONE
-	fmt.Printf("Waiting 30s...\n")
-	time.Sleep(30 * time.Second)
-
-	metaFilesLoc = path.Join(TMP_METADATA_DIR, "rollback")
-	passed, e = retrieveMetadataAndValidate(indyBaseUrl, packageType, metaCheckRepo, metaFiles, metaFilesLoc, newVersionNum, !exists)
-	if !passed {
-		logger.Infof("Metadata validate failed (rollback). Errors: %s", e.Error())
-		panic("Metadata validate failed")
-	}
-	fmt.Printf("Metadata validate (rollback) SUCCESS\n")
 
 	// Pause and keep pod for debugging
 	if keepPod {
